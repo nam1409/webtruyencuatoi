@@ -1,0 +1,33 @@
+# ZenStory Elite Task List
+
+## 🏗️ Phase 1: Foundation & Database
+- [x] Initialize Next.js 16 project with Tailwind CSS v4
+- [x] Setup Supabase Project & SSR Auth
+- [x] Create Database Schema (SQL Migration)
+- [ ] Implement Rate Limiting for API routes
+
+## ✍️ Phase 2: Professional Authoring Tools
+- [ ] **Advanced Tiptap Editor**
+    - [ ] Rich text + Markdown shortcuts
+    - [ ] Image upload & placeholder
+    - [ ] **Auto-save system** (Debounced)
+- [ ] **Chapter Management**
+    - [ ] Version history & Rollback UI
+    - [ ] Password protection settings
+    - [ ] Custom Slug management
+
+## 📖 Phase 3: Premium Reader Experience
+- [ ] **SSR Rendering Pipeline** (JSON to HTML)
+- [ ] Reader Layout with Multi-theme & Fonts
+- [ ] **In-line Comments System**
+    - [ ] Paragraph indexing & mapping
+    - [ ] Sidebar comment view
+- [ ] Password Entry UI & Verification Action
+- [ ] Character Profile Overlays
+
+## 🚀 Phase 4: Production Optimization
+- [ ] **Image Optimization Pipeline** (Next/Image + CDN)
+- [ ] SEO: Dynamic JSON-LD & Sitemap
+- [ ] PWA & Offline Support
+- [ ] Content Protection (Anti-copy/Right-click)
+- [ ] Deploy Template & Documentation

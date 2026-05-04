@@ -1,0 +1,68 @@
+# ZenStory: Elite Light Novel Template (2026 Edition)
+
+ZenStory là nền tảng tự xuất bản truyện chữ mã nguồn mở, tối ưu cho SEO, bảo mật nội dung và trải nghiệm viết lách chuyên nghiệp.
+
+---
+
+## 🛠 Tech Stack & Architecture
+- **Framework**: Next.js 16 (App Router) - Tận dụng React Compiler & Turbopack.
+- **Backend**: Supabase (PostgreSQL + Auth + Storage).
+- **Styling**: Tailwind CSS v4 (CSS-first).
+- **Editor**: Tiptap (Customized for Fiction Writing).
+- **Image Pipeline**: Supabase Storage + Next.js Image Optimization (Vercel CDN).
+- **Protection**: Rate Limiting (Upstash/Edge Functions).
+
+---
+
+## ✨ Critical Features (Requirements)
+
+### 1. Quản lý nội dung (Authoring)
+- **Editor Tiptap (Advanced)**: 
+    - Hỗ trợ Markdown shortcuts, chèn block Nhân vật, block Ảnh minh họa.
+    - **Draft & Versioning**: Tự động lưu nháp (Auto-save) và lưu lịch sử phiên bản để Rollback.
+- **Slug & URL Control**: Tự động tạo Slug chuẩn SEO, cho phép tùy chỉnh thủ công.
+- **Cấu trúc dữ liệu**: Lưu dưới dạng JSON (Tiptap format) để hỗ trợ "Bình luận theo dòng".
+
+### 2. Trải nghiệm Đọc & Bảo mật
+- **Rendering Pipeline**: Render Server-side (SSR) nội dung từ JSON sang HTML sạch để tối ưu SEO.
+- **Reading Modes**: Light, Dark, Sepia, OLED + Font Manager (Curated list).
+- **Content Protection Suite**:
+    - Chặn Copy, Chặn chuột phải, Chặn F12 (Có thể bật/tắt).
+    - **Password Protected Chapters**: Khóa chương bằng mật khẩu, xác thực phía Server (Bảo mật tuyệt đối).
+- **In-line Comments**: Bình luận trên từng đoạn văn (Paragraph indexing).
+
+### 3. Hạ tầng & SEO
+- **Image Strategy**: Tự động resize/nén ảnh, phục vụ qua CDN của Vercel.
+- **Abuse Protection**: Giới hạn tần suất bình luận (Rate limit), chống Spam bot.
+- **PWA Support**: Đọc offline, cài đặt như ứng dụng.
+- **SEO Schema**: JSON-LD Book/Chapter, Sitemap tự động.
+
+---
+
+## 📅 Milestones & Tasks
+
+### Phase 1: Core Infra & Security
+- [ ] Init Next.js 16 + Tailwind v4 project.
+- [ ] Schema DB: `stories`, `chapters`, `chapter_versions`, `comments`, `characters`.
+- [ ] Setup Rate Limiting & Auth Middleware.
+
+### Phase 2: Professional Editor
+- [ ] Implement Tiptap with Auto-save & History.
+- [ ] Build Password Protection logic (Server-side validation).
+- [ ] Slug generation & manual override UI.
+
+### Phase 3: Reader UX & Rendering
+- [ ] SSR Content Pipeline (JSON to HTML).
+- [ ] Theme Engine & Font Manager.
+- [ ] In-line Comment System (Frontend + DB hooks).
+
+### Phase 4: Polish & Growth
+- [ ] Image Optimization Pipeline (Vercel/Next Image).
+- [ ] PWA & SEO Fine-tuning.
+- [ ] 1-Click Deploy Documentation.
+
+---
+
+## ❓ Open Questions
+> [!IMPORTANT]
+> **Versioning Storage**: Chúng ta sẽ lưu tối đa bao nhiêu phiên bản lịch sử cho mỗi chương để tránh làm đầy 500MB Database? (Ví dụ: 10 phiên bản gần nhất).
