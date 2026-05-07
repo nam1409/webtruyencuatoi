@@ -18,7 +18,7 @@ Dành cho các tác giả muốn sở hữu website ngay lập tức.
 ### Bước 1: Triển khai Website
 Nhấn vào nút dưới đây để sao chép mã nguồn và đưa lên máy chủ Vercel (Miễn phí):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/namnguyen1409/lightnovel&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,NEXT_PUBLIC_SITE_URL&project-name=my-zenstory&repository-name=my-zenstory)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/namnguyen1409/lightnovel&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,NEXT_PUBLIC_SITE_URL&project-name=my-zenstory&repository-name=my-zenstory)
 
 ### Bước 2: Khởi tạo Cơ sở dữ liệu (Supabase)
 1. Truy cập [Supabase.com](https://supabase.com/) và tạo một dự án mới.
@@ -43,8 +43,6 @@ Bạn cần điền các thông tin sau vào tệp `.env` hoặc cấu hình tr�
 ### 1. Supabase (Lấy tại Project Settings > API)
 - `NEXT_PUBLIC_SUPABASE_URL`: Đường dẫn URL của dự án.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Khóa công khai dành cho client.
-- `SUPABASE_SERVICE_ROLE_KEY`: **Cực kỳ quan trọng**, dùng để quản trị dữ liệu ở phía server. Hãy nhấn "Reveal" để thấy mã này.
-- `SUPABASE_ACCESS_TOKEN`: Lấy tại **Account Settings > Access Tokens** trên Supabase (dùng để quản trị hệ thống sâu hơn).
 
 ### 2. Redis (Lấy tại Upstash Dashboard)
 - `UPSTASH_REDIS_REST_URL`: Đường dẫn REST của Redis.
