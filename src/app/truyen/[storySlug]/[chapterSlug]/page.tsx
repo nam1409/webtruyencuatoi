@@ -1,41 +1,101 @@
-import { ReaderProvider } from "@/features/reader/context/ReaderContext";
+import { getChapterBySlug, getChaptersByStory } from "@/actions/chapters";
+import { getVolumesByStory } from "@/actions/volumes";
+import { getCommentCountsByParagraph } from "@/actions/comments";
+import { getReadingProgress } from "@/actions/progress";
 import { ReaderLayout } from "@/features/reader/components/ReaderLayout";
+import { ViewCounter } from "@/features/reader/components/ViewCounter";
+import { notFound } from "next/navigation";
+import { ProtectedContent } from "@/features/reader/components/ProtectedContent";
+import { StaticContent } from "@/features/reader/components/StaticContent";
+import { Metadata } from "next";
 
-export default function ChapterPage() {
-  // Demo content
-  const storyTitle = "Tiên Nghịch (Xian Ni)";
-  const chapterTitle = "Chương 1: Thiếu niên rèn sắt";
-  
+export async function generateMetadata(
+  { params }: { params: Promise<{ storySlug: string; chapterSlug: string }> }
+): Promise<Metadata> {
+  const { storySlug, chapterSlug } = await params;
+  const chapter = await getChapterBySlug(storySlug, chapterSlug);
+
+  if (!chapter) return {};
+
+  const title = `${chapter.title} - ${chapter.stories.title}`;
+  const description = `Đọc chương ${chapter.title} của truyện ${chapter.stories.title} mới nhất, nhanh nhất tại ZenStory.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
+
+export default async function ChapterPage({
+  params
+}: {
+  params: Promise<{ storySlug: string; chapterSlug: string }>
+}) {
+  const { storySlug, chapterSlug } = await params;
+
+  const chapter = await getChapterBySlug(storySlug, chapterSlug);
+
+  if (!chapter) {
+    notFound();
+  }
+
+  // Fetch all chapters, volumes, comment counts and progress
+  const [allChapters, allVolumes, commentCounts, progress] = await Promise.all([
+    getChaptersByStory(chapter.story_id),
+    getVolumesByStory(chapter.story_id),
+    getCommentCountsByParagraph(chapter.id),
+    getReadingProgress(chapter.story_id)
+  ]);
+
+  const isCanvasProtected = chapter.stories.is_protected;
+  const hasPassword = !!chapter.password_hash;
+  const showProtected = isCanvasProtected || hasPassword;
+
+  // Default reader settings for SSR
+  const defaultSettings = {
+    fontSize: 18,
+    font: 'font-serif',
+    lineHeight: 1.6,
+  };
+
   return (
-    <ReaderProvider>
-      <ReaderLayout 
-        storyTitle={storyTitle} 
-        chapterTitle={chapterTitle}
-        prevChapter="#"
-        nextChapter="#"
+    <>
+      <ViewCounter chapterId={chapter.id} />
+      <ReaderLayout
+        storyId={chapter.story_id}
+        chapterId={chapter.id}
+        storyTitle={chapter.stories.title}
+        chapterTitle={chapter.title}
+        chapters={allChapters}
+        volumes={allVolumes}
+        storySlug={storySlug}
+        chapterSlug={chapterSlug}
+        protectionEnabled={isCanvasProtected}
+        initialScroll={progress?.chapter_id === chapter.id ? progress?.scroll_position : 0}
       >
-        <p>
-          Trong một ngôi làng nhỏ hẻo lánh phía Bắc Triệu quốc, có một thiếu niên tên là Vương Lâm. Hắn sinh ra trong một gia đình thợ rèn nghèo, từ nhỏ đã quen với tiếng búa đập và hơi nóng hừng hực của lò lửa.
-        </p>
-        <p>
-          "Vương Lâm, mau mang nước lại đây!" Tiếng gọi của cha hắn vang lên từ trong gian nhà bốc khói nghi ngút.
-        </p>
-        <p>
-          Vương Lâm gạt mồ hôi trên trán, vội vàng bê thùng nước lạnh đến bên bệ rèn. Hắn nhìn cha mình đang miệt mài với thanh sắt đỏ rực, trong ánh mắt lộ ra một tia khao khát. Hắn không muốn cả đời chỉ gắn bó với búa rèn này, hắn muốn được giống như những vị tiên nhân trong truyền thuyết, có thể cưỡi mây đạp gió, trường sinh bất lão.
-        </p>
-        <p>
-          Hôm nay là ngày đại phái Hằng Nhạc đến làng tuyển chọn đệ tử. Đây là cơ hội duy nhất để hắn thay đổi vận mệnh của mình.
-        </p>
-        <p>
-          Vương Lâm hít một hơi thật sâu, bàn tay nắm chặt. Hắn biết tư chất của mình bình thường, nhưng hắn có một trái tim kiên định hơn bất kỳ ai.
-        </p>
-        <p>
-          "Cha, con muốn đi thử vận may tại Hằng Nhạc phái." Vương Lâm lấy hết can đảm nói.
-        </p>
-        <p>
-          Cha hắn ngừng tay búa, nhìn đứa con trai duy nhất với ánh mắt phức tạp. Sau một hồi im lặng, ông thở dài: "Đi đi, con trai. Đừng để mình phải hối hận như ta."
-        </p>
+        {showProtected ? (
+          <ProtectedContent
+            chapterId={chapter.id}
+            isProtected={isCanvasProtected}
+          />
+        ) : (
+          <StaticContent
+            content={chapter.content_json}
+            settings={defaultSettings}
+            commentCounts={commentCounts}
+          />
+        )}
       </ReaderLayout>
-    </ReaderProvider>
+    </>
   );
 }
