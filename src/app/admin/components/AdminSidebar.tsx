@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { getGlobalStats } from "@/actions/admin";
+import { signOut } from "@/app/auth/actions";
 
 const menuItems = [
   {
@@ -153,7 +154,10 @@ export function AdminSidebar() {
       </div>
 
       {/* Logout */}
-      <button className="mt-6 w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-300 font-bold text-sm">
+      <button 
+        onClick={() => signOut()}
+        className="mt-6 w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-300 font-bold text-sm"
+      >
         <LogOut className="w-5 h-5" />
         Đăng xuất
       </button>

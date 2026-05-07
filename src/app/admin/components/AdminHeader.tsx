@@ -63,15 +63,21 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         <NotificationCenter />
 
         {/* User Profile Quick View */}
-        <div className="flex items-center gap-2 md:gap-3 md:pl-6 md:border-l border-border/50 cursor-pointer group">
+        <Link href="/profile" className="flex items-center gap-2 md:gap-3 md:pl-6 md:border-l border-border/50 cursor-pointer group">
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">Admin Hub</span>
-            <span className="text-xs font-black tracking-tight">Quản trị viên</span>
+            <span className="text-xs font-black tracking-tight">{userProfile?.display_name || "Quản trị viên"}</span>
           </div>
-          <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary font-black text-base md:text-lg group-hover:scale-105 transition-transform">
-            A
+          <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-primary/10 border-2 border-primary/20 overflow-hidden group-hover:scale-105 transition-transform">
+            {userProfile?.avatar_url ? (
+              <img src={userProfile.avatar_url} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-primary font-black text-base md:text-lg">
+                {userProfile?.display_name?.[0] || "A"}
+              </div>
+            )}
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );

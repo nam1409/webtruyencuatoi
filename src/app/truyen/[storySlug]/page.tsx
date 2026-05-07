@@ -60,7 +60,19 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
   const story = await getStoryBySlug(storySlug);
   const settings = await getSiteSettings();
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+
+  // Fetch full profile with role
+  let user = null;
+  if (authUser) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+    
+    user = profile ? { ...authUser, ...profile } : authUser;
+  }
   
   if (!story) {
     notFound();

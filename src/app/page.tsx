@@ -8,8 +8,20 @@ import Link from "next/link";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
   const settings = await getSiteSettings();
+
+  // Fetch full profile with role
+  let user = null;
+  if (authUser) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+    
+    user = profile ? { ...authUser, ...profile } : authUser;
+  }
   
   // Get layout configuration, fallback to default if empty
   const layout = settings?.homepage_layout || [

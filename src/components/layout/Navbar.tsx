@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { LogOut } from "lucide-react";
+import { signOut } from "@/app/auth/actions";
 
 interface NavbarProps {
   user: any;
@@ -66,20 +68,33 @@ export function Navbar({ user, settings }: NavbarProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-4">
-              <Link href="/admin" className="hidden sm:block">
-                <Button variant="outline" className="rounded-xl border-primary/20 hover:border-primary/50 text-primary font-bold shadow-sm">
-                  Bảng điều khiển
-                </Button>
-              </Link>
-              <Link href="/admin/profile" className="w-10 h-10 rounded-xl bg-muted overflow-hidden border border-border shadow-sm hover:border-primary transition-all group">
-                {user.user_metadata?.avatar_url ? (
+              {user.role === 'admin' && (
+                <Link href="/admin" className="hidden sm:block">
+                  <Button variant="outline" className="rounded-xl border-primary/20 hover:border-primary/50 text-primary font-bold shadow-sm">
+                    Bảng điều khiển
+                  </Button>
+                </Link>
+              )}
+              <Link href="/profile" className="w-10 h-10 rounded-xl bg-muted overflow-hidden border border-border shadow-sm hover:border-primary transition-all group">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} className="w-full h-full object-cover" />
+                ) : user.user_metadata?.avatar_url ? (
                   <img src={user.user_metadata.avatar_url} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary text-xs font-black uppercase">
-                    {user.user_metadata?.display_name?.[0] || user.email?.[0] || "U"}
+                    {user.display_name?.[0] || user.user_metadata?.display_name?.[0] || user.email?.[0] || "U"}
                   </div>
                 )}
               </Link>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => signOut()}
+                className="rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                title="Đăng xuất"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
           ) : (
             <>

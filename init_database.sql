@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 2. ĐỊNH NGHĨA CÁC BẢNG (TABLES)
 
 -- Hồ sơ người dùng (Profiles)
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username text NOT NULL UNIQUE,
   display_name text,
@@ -20,7 +20,7 @@ CREATE TABLE public.profiles (
 );
 
 -- Tác phẩm (Stories)
-CREATE TABLE public.stories (
+CREATE TABLE IF NOT EXISTS public.stories (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   author_id uuid NOT NULL REFERENCES public.profiles(id),
   title text NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE public.stories (
 );
 
 -- Tập truyện (Volumes)
-CREATE TABLE public.volumes (
+CREATE TABLE IF NOT EXISTS public.volumes (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
   title text NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE public.volumes (
 );
 
 -- Chương truyện (Chapters)
-CREATE TABLE public.chapters (
+CREATE TABLE IF NOT EXISTS public.chapters (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
   volume_id uuid REFERENCES public.volumes(id) ON DELETE SET NULL,
@@ -75,7 +75,7 @@ CREATE TABLE public.chapters (
 );
 
 -- Bình luận (Comments)
-CREATE TABLE public.comments (
+CREATE TABLE IF NOT EXISTS public.comments (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   chapter_id uuid NOT NULL REFERENCES public.chapters(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -87,7 +87,7 @@ CREATE TABLE public.comments (
 );
 
 -- Đánh giá (Ratings)
-CREATE TABLE public.ratings (
+CREATE TABLE IF NOT EXISTS public.ratings (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
@@ -98,7 +98,7 @@ CREATE TABLE public.ratings (
 );
 
 -- Tiến trình đọc (User Reading Progress)
-CREATE TABLE public.user_reading_progress (
+CREATE TABLE IF NOT EXISTS public.user_reading_progress (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
   chapter_id uuid NOT NULL REFERENCES public.chapters(id) ON DELETE CASCADE,
@@ -108,7 +108,7 @@ CREATE TABLE public.user_reading_progress (
 );
 
 -- Cài đặt hệ thống (Site Settings)
-CREATE TABLE public.site_settings (
+CREATE TABLE IF NOT EXISTS public.site_settings (
   id uuid NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
   site_name text DEFAULT 'ZenStory'::text,
   site_description text DEFAULT 'Nền tảng sáng tác và đọc truyện Light Novel cao cấp'::text,
@@ -137,7 +137,7 @@ CREATE TABLE public.site_settings (
 );
 
 -- Nhật ký hoạt động (Activity Logs)
-CREATE TABLE public.activity_logs (
+CREATE TABLE IF NOT EXISTS public.activity_logs (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   action text NOT NULL,
@@ -149,7 +149,7 @@ CREATE TABLE public.activity_logs (
 );
 
 -- Phiên bản chương truyện (Chapter Versions)
-CREATE TABLE public.chapter_versions (
+CREATE TABLE IF NOT EXISTS public.chapter_versions (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   chapter_id uuid NOT NULL REFERENCES public.chapters(id) ON DELETE CASCADE,
   edited_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -159,7 +159,7 @@ CREATE TABLE public.chapter_versions (
 );
 
 -- Nhân vật (Characters)
-CREATE TABLE public.characters (
+CREATE TABLE IF NOT EXISTS public.characters (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
   name text NOT NULL,
@@ -171,7 +171,7 @@ CREATE TABLE public.characters (
 );
 
 -- Thông báo (Notifications)
-CREATE TABLE public.notifications (
+CREATE TABLE IF NOT EXISTS public.notifications (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   type text NOT NULL,
@@ -183,7 +183,7 @@ CREATE TABLE public.notifications (
 );
 
 -- Cộng tác viên (Story Collaborators)
-CREATE TABLE public.story_collaborators (
+CREATE TABLE IF NOT EXISTS public.story_collaborators (
   id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -192,7 +192,7 @@ CREATE TABLE public.story_collaborators (
 );
 
 -- Lượt xem hàng ngày (Story Views Daily)
-CREATE TABLE public.story_views_daily (
+CREATE TABLE IF NOT EXISTS public.story_views_daily (
   story_id uuid NOT NULL REFERENCES public.stories(id) ON DELETE CASCADE,
   view_date date NOT NULL DEFAULT CURRENT_DATE,
   view_count integer DEFAULT 1,
@@ -211,43 +211,99 @@ ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Profiles
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Stories
+DROP POLICY IF EXISTS "Stories are viewable by everyone" ON public.stories;
 CREATE POLICY "Stories are viewable by everyone" ON public.stories FOR SELECT USING (is_private = false OR auth.uid() = author_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+DROP POLICY IF EXISTS "Authors can manage own stories" ON public.stories;
 CREATE POLICY "Authors can manage own stories" ON public.stories FOR ALL USING (auth.uid() = author_id);
 
 -- Chapters
+DROP POLICY IF EXISTS "Published chapters viewable by everyone" ON public.chapters;
 CREATE POLICY "Published chapters viewable by everyone" ON public.chapters FOR SELECT USING (status = 'published' OR EXISTS (SELECT 1 FROM public.stories WHERE id = story_id AND author_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Authors manage own chapters" ON public.chapters;
 CREATE POLICY "Authors manage own chapters" ON public.chapters FOR ALL USING (EXISTS (SELECT 1 FROM public.stories WHERE id = story_id AND author_id = auth.uid()));
 
 -- Settings
+DROP POLICY IF EXISTS "Settings are viewable by everyone" ON public.site_settings;
 CREATE POLICY "Settings are viewable by everyone" ON public.site_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Only admins can manage settings" ON public.site_settings;
 CREATE POLICY "Only admins can manage settings" ON public.site_settings FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
 -- 4. TỰ ĐỘNG TẠO PROFILE KHI ĐĂNG KÝ (TRIGGER)
 
+-- Xóa hàm cũ nếu tồn tại để tránh xung đột
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   default_avatar text;
+  user_count int;
+  user_role text;
+  safe_username text;
 BEGIN
-  -- Tự động sinh avatar từ DiceBear dựa trên username
-  default_avatar := 'https://api.dicebear.com/7.x/pixel-art/svg?seed=' || COALESCE(new.raw_user_meta_data->>'username', new.id::text);
+  -- 1. Kiểm tra số lượng người dùng để gán quyền Admin cho người đầu tiên
+  SELECT count(*) INTO user_count FROM public.profiles;
+  
+  IF user_count = 0 THEN
+    user_role := 'admin';
+  ELSE
+    user_role := 'reader';
+  END IF;
 
-  INSERT INTO public.profiles (id, username, display_name, avatar_url, role)
+  -- 2. Xử lý username an toàn
+  safe_username := COALESCE(
+    new.raw_user_meta_data->>'username',
+    split_part(new.email, '@', 1),
+    'user_' || substr(new.id::text, 1, 8)
+  );
+
+  -- 3. Tạo avatar mặc định
+  default_avatar := 'https://api.dicebear.com/7.x/pixel-art/svg?seed=' || safe_username;
+
+  -- 4. Chèn dữ liệu vào bảng profiles
+  INSERT INTO public.profiles (
+    id, 
+    username, 
+    display_name, 
+    avatar_url, 
+    role, 
+    created_at, 
+    updated_at
+  )
   VALUES (
     new.id,
-    new.raw_user_meta_data->>'username',
-    new.raw_user_meta_data->>'display_name',
+    safe_username,
+    COALESCE(new.raw_user_meta_data->>'display_name', safe_username),
     COALESCE(new.raw_user_meta_data->>'avatar_url', default_avatar),
-    COALESCE(new.raw_user_meta_data->>'role', 'reader')
+    user_role,
+    now(),
+    now()
   );
+
+  RETURN new;
+EXCEPTION WHEN OTHERS THEN
+  -- Log lỗi thầm lặng (có thể xem trong Postgres Logs của Supabase)
+  -- Vẫn trả về new để không chặn tiến trình đăng ký của auth.users
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
+-- Tạo lại trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
