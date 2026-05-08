@@ -7,6 +7,8 @@ import { Loader2, MessageSquare } from 'lucide-react';
 import { ChapterPasswordGate } from './ChapterPasswordGate';
 import { SpoilerSpan, AnnotationSpan } from './StaticContent';
 import { JSX } from 'react/jsx-runtime';
+import Image from 'next/image';
+import { deobfuscateKey } from '@/lib/obfuscator';
 
 interface ProtectedParagraphProps {
   node: any;
@@ -56,10 +58,11 @@ const ProtectedParagraph = React.memo(({
       <p 
         key={nodeId} 
         data-paragraph-id={nodeId} 
-        className="mb-4 text-justify relative group cursor-pointer pr-12"
+        className="relative group cursor-pointer pr-12"
         style={{ 
           fontSize: `${settings.fontSize}px`,
           lineHeight: settings.lineHeight,
+          marginBottom: 'var(--reader-p-spacing)',
         }}
         onClick={() => {
           setSelectedParagraph(nodeId);
@@ -89,7 +92,10 @@ const ProtectedParagraph = React.memo(({
     <div 
       key={`${nodeId}-${settings.theme}`} 
       data-paragraph-id={nodeId} 
-      className="relative group cursor-pointer py-2 pr-14"
+      className="relative group cursor-pointer pr-14"
+      style={{
+        marginBottom: 'var(--reader-p-spacing)',
+      }}
       onClick={() => {
         setSelectedParagraph(nodeId);
         setSidebarOpen(true);
@@ -106,7 +112,14 @@ const ProtectedParagraph = React.memo(({
         theme={settings.theme}
         commentCount={commentCounts[nodeId]}
       />
-      {/* Remove the absolute bubble from here as it's now drawn on canvas */}
+      {/* Accessibility: Hidden text for screen readers */}
+      <div className="sr-only">
+        {segments.map((s: any, i: number) => {
+          const charMap = deobfuscateKey(contentKey);
+          const segmentText = s.glyphs?.map((idx: number) => charMap[idx] || '').join('') || '';
+          return <span key={i}>{s.isSpoiler ? '[Nội dung ẩn]' : segmentText}</span>;
+        })}
+      </div>
     </div>
   );
 });
@@ -190,7 +203,14 @@ const ProtectedHeading = React.memo(({
         theme={settings.theme}
         commentCount={commentCounts[nodeId]}
       />
-      {/* Remove the absolute bubble from here as it's now drawn on canvas */}
+      {/* Accessibility: Hidden text for screen readers */}
+      <div className="sr-only">
+        {segments.map((s: any, i: number) => {
+          const charMap = deobfuscateKey(contentKey);
+          const segmentText = s.glyphs?.map((idx: number) => charMap[idx] || '').join('') || '';
+          return <span key={i}>{s.isSpoiler ? '[Tiêu đề ẩn]' : segmentText}</span>;
+        })}
+      </div>
     </div>
   );
 });
@@ -284,7 +304,7 @@ export const ProtectedContent: React.FC<ProtectedContentProps> = ({
         fetchContent();
       }
     }
-  }, [chapterId, refreshKey]);
+  }, [chapterId]);
 
   return (
     <div ref={containerRef} className="w-full max-w-full overflow-hidden">
@@ -364,12 +384,13 @@ export const ProtectedContent: React.FC<ProtectedContentProps> = ({
                   data-paragraph-id={nodeId} 
                   className={`my-8 flex ${align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center'} ${layout === 'float-left' ? 'float-left mr-8 max-w-[50%]' : layout === 'float-right' ? 'float-right ml-8 max-w-[50%]' : 'clear-both'}`}
                 >
-                  <img 
-                    src={src} 
-                    alt={alt} 
-                    style={{ width: layout.startsWith('float') ? '100%' : width }}
-                    className="rounded-2xl border border-border/50 shadow-lg"
-                  />
+                  <div className="relative overflow-hidden rounded-2xl border border-border/50 shadow-lg" style={{ width: layout.startsWith('float') ? '100%' : width, aspectRatio: 'auto' }}>
+                    <img 
+                      src={src} 
+                      alt={alt} 
+                      className="w-full h-auto block"
+                    />
+                  </div>
                 </div>
               );
             }

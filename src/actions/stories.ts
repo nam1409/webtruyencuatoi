@@ -194,6 +194,7 @@ export async function createStory(formData: any) {
       genres: formData.genres,
       tags: formData.tags,
       metadata: formData.metadata,
+      allow_offline: formData.allow_offline,
     })
     .select()
     .single();
@@ -488,4 +489,39 @@ export async function getStoryAccessList(storyId: string) {
   }
 
   return data;
+}
+
+export async function searchStories(query: string, genre?: string) {
+  const supabase = await createClient();
+  
+  let q = supabase
+    .from("stories")
+    .select(`
+      *,
+      profiles:author_id (display_name, avatar_url),
+      chapters:chapters(count)
+    `)
+    .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`);
+
+  if (query) {
+    // Sử dụng Full-text Search của Postgres qua Supabase
+    // Lưu ý: Cần có index GIN trên title và description để đạt hiệu suất tốt nhất
+    q = q.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+  }
+
+  if (genre && genre !== "Tất cả") {
+    q = q.contains("genres", [genre]);
+  }
+
+  const { data, error } = await q.order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Search error:", error);
+    return [];
+  }
+
+  return data.map(s => ({
+    ...s,
+    chapter_count: s.chapters?.[0]?.count || 0
+  }));
 }

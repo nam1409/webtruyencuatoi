@@ -52,7 +52,7 @@ export function NotificationCenter() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative rounded-2xl bg-background/50 hover:bg-background border border-border/50 w-12 h-12">
           <Bell className="w-5 h-5 text-muted-foreground" />
           {unreadCount > 0 && (

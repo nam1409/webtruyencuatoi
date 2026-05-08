@@ -61,7 +61,7 @@ export async function exportStoryToEPUB(storyId: string) {
   const option = {
     title: story.title,
     author: story.author_name || "ZenStory Author",
-    cover: story.cover_url,
+    cover: story.cover_url || undefined,
     content: sortedChapters.map((chap: any) => ({
       title: chap.title,
       content: tiptapToHtml(chap.content_json)

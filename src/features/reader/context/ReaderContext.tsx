@@ -10,6 +10,8 @@ interface ReaderSettings {
   font: string;
   fontSize: number;
   lineHeight: number;
+  paragraphSpacing: number;
+  containerPadding: number;
   customThemes?: any[];
   customFonts?: any[];
   selectedParagraph?: string | number | null;
@@ -21,6 +23,8 @@ interface ReaderContextType {
   setFont: (font: string) => void;
   setFontSize: (size: number) => void;
   setLineHeight: (height: number) => void;
+  setParagraphSpacing: (spacing: number) => void;
+  setContainerPadding: (padding: number) => void;
   setSelectedParagraph: (id: string | number | null) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
@@ -28,6 +32,7 @@ interface ReaderContextType {
   refreshComments: () => void;
   comments: any[];
   setComments: (comments: any[]) => void;
+  isFocused: boolean;
 }
 
 const ReaderContext = createContext<ReaderContextType | undefined>(undefined);
@@ -42,6 +47,7 @@ export function ReaderProvider({
   const [refreshKey, setRefreshKey] = useState(0);
   const [comments, setComments] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(true);
   const [settings, setSettings] = useState<ReaderSettings>(() => {
     let savedSettings: any = {};
     if (typeof window !== 'undefined') {
@@ -60,6 +66,8 @@ export function ReaderProvider({
       font: initialSettings?.primary_font || "font-serif",
       fontSize: 18,
       lineHeight: 1.6,
+      paragraphSpacing: 24,
+      containerPadding: 24,
       ...savedSettings,
       // Đảm bảo các danh sách này luôn được lấy từ Database mới nhất
       customThemes: initialSettings?.custom_themes || [],
@@ -129,12 +137,46 @@ export function ReaderProvider({
       body.style.removeProperty('--muted');
       body.style.removeProperty('--border');
     }
+
+    body.style.setProperty('--reader-p-spacing', `${settings.paragraphSpacing}px`);
+    body.style.setProperty('--reader-container-padding', `${settings.containerPadding}px`);
   }, [settings]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      setIsFocused(true);
+      console.log("Reader Focus: ON");
+    };
+    const handleBlur = () => {
+      setIsFocused(false);
+      console.log("Reader Focus: OFF");
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) handleBlur();
+      else handleFocus();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Initial check
+    setIsFocused(document.hasFocus());
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const setTheme = (theme: string) => setSettings((s) => ({ ...s, theme }));
   const setFont = (font: string) => setSettings((s) => ({ ...s, font }));
   const setFontSize = (fontSize: number) => setSettings((s) => ({ ...s, fontSize }));
   const setLineHeight = (lineHeight: number) => setSettings((s) => ({ ...s, lineHeight }));
+  const setParagraphSpacing = (paragraphSpacing: number) => setSettings((s) => ({ ...s, paragraphSpacing }));
+  const setContainerPadding = (containerPadding: number) => setSettings((s) => ({ ...s, containerPadding }));
   const setSelectedParagraph = (id: string | number | null) => setSettings((s) => ({ ...s, selectedParagraph: id }));
   const refreshComments = () => setRefreshKey(prev => prev + 1);
 
@@ -142,9 +184,11 @@ export function ReaderProvider({
     <ReaderContext.Provider
       value={{
         settings, setTheme, setFont, setFontSize, setLineHeight, 
+        setParagraphSpacing, setContainerPadding,
         setSelectedParagraph, sidebarOpen, setSidebarOpen,
         refreshKey, refreshComments,
-        comments, setComments
+        comments, setComments,
+        isFocused
       }}
     >
       <div className={`theme-${settings.theme} min-h-screen flex flex-col transition-colors duration-300`}>

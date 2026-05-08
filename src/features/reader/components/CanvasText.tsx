@@ -3,7 +3,8 @@ import { useReader } from '../context/ReaderContext';
 import { deobfuscateKey } from '@/lib/obfuscator';
 
 interface TextSegment {
-  text: string;
+  text?: string;
+  glyphs?: number[];
   isSpoiler?: boolean;
 }
 
@@ -30,6 +31,7 @@ export const CanvasText = React.memo(({
   theme,
   commentCount = 0
 }: CanvasTextProps) => {
+  const { isFocused } = useReader();
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [revealedSpoilers, setRevealedSpoilers] = React.useState<Set<number>>(new Set());
 
@@ -45,12 +47,19 @@ export const CanvasText = React.memo(({
     const lineHeightPx = fontSize * lineHeight;
     const spoilerRegions: { rect: { x: number, y: number, w: number, h: number }, id: number }[] = [];
 
+    // Use original mapping or scramble if unfocused
+    // Scramble by shifting characters or using a fixed dummy key
+    const currentMapping = isFocused ? mapping : mapping.split('').sort().join('');
+    const charMap = deobfuscateKey(isFocused ? mapping : currentMapping);
+    
     const renderText = (isActualRender: boolean) => {
       let xOffset = 0;
       let yOffset = fontSize;
       
       segments.forEach((segment, segmentIndex) => {
-        const words = segment.text.split(' ');
+        // Convert glyphs to text using the map if text is missing
+        const segmentText = segment.text || (segment.glyphs?.map(idx => charMap[idx] || '').join('')) || '';
+        const words = segmentText.split(' ');
         
         words.forEach((word, wordIndex) => {
           const wordWithSpace = wordIndex === words.length - 1 ? word : word + ' ';
@@ -132,8 +141,21 @@ export const CanvasText = React.memo(({
     ctx.font = `${fontSize}px ${fontFamily}`;
     renderText(true);
 
+    // OCR PROTECTION: Add subtle noise dots that don't affect human readability but confuse automated scanners
+    const noiseDensity = 0.005; // 0.5% of pixels
+    const noiseCount = Math.floor(canvas.width * canvas.height * noiseDensity / (dpr * dpr));
+    ctx.save();
+    for (let i = 0; i < noiseCount; i++) {
+      const px = Math.random() * maxWidth;
+      const py = Math.random() * totalHeight;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.03; // Very subtle
+      ctx.fillRect(px, py, 1, 1);
+    }
+    ctx.restore();
+
     (canvas as any)._spoilerRegions = spoilerRegions;
-  }, [segments, fontSize, fontFamily, lineHeight, color, maxWidth, revealedSpoilers, commentCount, theme]);
+  }, [segments, fontSize, fontFamily, lineHeight, color, maxWidth, revealedSpoilers, commentCount, theme, isFocused, mapping]);
 
   React.useEffect(() => {
     // Wait for fonts to be ready
@@ -170,7 +192,7 @@ export const CanvasText = React.memo(({
       <canvas 
         ref={canvasRef}
         onPointerDown={handlePointerDown}
-        className="block"
+        className={`block transition-all duration-500 ${!isFocused ? 'blur-md grayscale opacity-50' : ''}`}
       />
     </div>
   );

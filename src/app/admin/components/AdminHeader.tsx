@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { NotificationCenter } from "./NotificationCenter";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 interface AdminHeaderProps {
   onMenuClick: () => void;
@@ -17,10 +17,28 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
+
+    // Fetch user profile
+    const fetchProfile = async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        setUserProfile(data);
+      }
+    };
+    fetchProfile();
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 

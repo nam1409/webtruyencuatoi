@@ -53,15 +53,13 @@ export async function markAllAsRead() {
 
 export async function createNotification(userId: string, type: string, title: string, content: string, link?: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("notifications")
-    .insert({
-      user_id: userId,
-      type,
-      title,
-      content,
-      link
-    });
+  const { error } = await supabase.rpc("create_system_notification", {
+    p_user_id: userId,
+    p_type: type,
+    p_title: title,
+    p_content: content,
+    p_link: link
+  });
 
   if (error) {
     console.error("Error creating notification:", error);

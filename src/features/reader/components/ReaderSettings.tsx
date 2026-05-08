@@ -11,7 +11,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 export function ReaderSettings({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
-  const { settings, setTheme, setFontSize, setFont } = useReader();
+  const { 
+    settings, setTheme, setFontSize, setFont, 
+    setLineHeight, setParagraphSpacing, setContainerPadding 
+  } = useReader();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,25 +102,110 @@ export function ReaderSettings({ open, onOpenChange }: { open: boolean, onOpenCh
             </div>
           </section>
 
-          {/* Font Size */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Kích thước</p>
-              <span className="text-lg font-black text-primary">{settings.fontSize}px</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setFontSize(Math.max(12, settings.fontSize - 1))}
-                className="flex-1 h-12 bg-muted/50 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
-              >
-                <Type className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => setFontSize(Math.min(32, settings.fontSize + 1))}
-                className="flex-1 h-12 bg-muted/50 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
-              >
-                <Type className="w-7 h-7" />
-              </button>
+          {/* Font Size, Line Height, Spacing, Padding */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-8">
+            {/* Font Size */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Cỡ chữ</p>
+                <span className="text-xs font-black text-primary">{settings.fontSize}px</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setFontSize(Math.max(12, settings.fontSize - 1))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <Type className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setFontSize(Math.min(48, settings.fontSize + 1))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <Type className="w-5 h-5" />
+                </button>
+              </div>
+            </section>
+
+            {/* Line Height */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Dòng</p>
+                <span className="text-xs font-black text-primary">{settings.lineHeight}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setLineHeight(Math.max(1, Math.round((settings.lineHeight - 0.1) * 10) / 10))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-xs font-bold">-</span>
+                </button>
+                <button 
+                  onClick={() => setLineHeight(Math.min(3, Math.round((settings.lineHeight + 0.1) * 10) / 10))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-xs font-bold">+</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Paragraph Spacing */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Cách đoạn</p>
+                <span className="text-xs font-black text-primary">{settings.paragraphSpacing}px</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setParagraphSpacing(Math.max(0, settings.paragraphSpacing - 4))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-xs font-bold">-</span>
+                </button>
+                <button 
+                  onClick={() => setParagraphSpacing(Math.min(100, settings.paragraphSpacing + 4))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-xs font-bold">+</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Container Padding */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Lề</p>
+                <span className="text-xs font-black text-primary">{settings.containerPadding}px</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setContainerPadding(Math.max(0, settings.containerPadding - 4))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-xs font-bold">-</span>
+                </button>
+                <button 
+                  onClick={() => setContainerPadding(Math.min(100, settings.containerPadding + 4))}
+                  className="flex-1 h-10 bg-muted/40 rounded-xl flex items-center justify-center hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-xs font-bold">+</span>
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <Separator className="opacity-50" />
+
+          {/* Offline Support */}
+          <section className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Đọc Offline</p>
+                <p className="text-[10px] text-muted-foreground">Tự động lưu các chương đã đọc vào bộ nhớ thiết bị.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                <span className="text-[10px] font-bold uppercase text-primary/70">Đã kích hoạt</span>
+              </div>
             </div>
           </section>
         </div>

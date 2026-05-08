@@ -6,6 +6,7 @@ import { getSiteSettings } from "@/actions/settings";
 import { cookies } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ReaderProvider } from "../features/reader/context/ReaderContext";
+import { PWAProvider } from "@/components/providers/PWAProvider";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -58,8 +59,9 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     manifest: "/manifest.json",
     icons: {
-      icon: "/favicon.ico",
-      apple: "/apple-touch-icon.png",
+      icon: settings.favicon_url || "/favicon.ico",
+      apple: settings.apple_icon_url || "/apple-touch-icon.png",
+      shortcut: settings.favicon_url || "/favicon.ico",
     },
   };
 }
@@ -113,13 +115,18 @@ export default async function RootLayout({
           ` : ''}
         `}} />
       </head>
-      <body className={cn(
-        "bg-background text-foreground transition-colors duration-300",
-        `theme-${activeTheme}`
-      )}>
+      <body 
+        className={cn(
+          "bg-background text-foreground transition-colors duration-300",
+          `theme-${activeTheme}`
+        )}
+        suppressHydrationWarning
+      >
         <ReaderProvider initialSettings={{...settings, default_theme: activeTheme}}>
-          {children}
-          <Toaster position="top-center" richColors />
+          <PWAProvider>
+            {children}
+            <Toaster position="top-center" richColors />
+          </PWAProvider>
         </ReaderProvider>
       </body>
     </html>

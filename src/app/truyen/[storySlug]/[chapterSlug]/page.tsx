@@ -1,4 +1,4 @@
-import { getChapterBySlug, getChaptersByStory } from "@/actions/chapters";
+import { getChapterBySlug, getChaptersByStory, getChapterVersions } from "@/actions/chapters";
 import { getVolumesByStory } from "@/actions/volumes";
 import { getCommentCountsByParagraph } from "@/actions/comments";
 import { getReadingProgress } from "@/actions/progress";
@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import { ProtectedContent } from "@/features/reader/components/ProtectedContent";
 import { StaticContent } from "@/features/reader/components/StaticContent";
 import { Metadata } from "next";
+import { OfflineSupport } from "@/features/reader/components/OfflineSupport";
 
 export async function generateMetadata(
   { params }: { params: Promise<{ storySlug: string; chapterSlug: string }> }
@@ -37,11 +38,14 @@ export async function generateMetadata(
 }
 
 export default async function ChapterPage({
-  params
+  params,
+  searchParams
 }: {
-  params: Promise<{ storySlug: string; chapterSlug: string }>
+  params: Promise<{ storySlug: string; chapterSlug: string }>;
+  searchParams: Promise<{ v?: string }>;
 }) {
   const { storySlug, chapterSlug } = await params;
+  const { v: versionId } = await searchParams;
 
   const chapter = await getChapterBySlug(storySlug, chapterSlug);
 
@@ -49,13 +53,32 @@ export default async function ChapterPage({
     notFound();
   }
 
-  // Fetch all chapters, volumes, comment counts and progress
-  const [allChapters, allVolumes, commentCounts, progress] = await Promise.all([
+  // If a specific version is requested, we need to fetch its content
+  let displayContent = chapter.content_json;
+  if (versionId) {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { data: vData } = await supabase
+      .from("chapter_versions")
+      .select("content_json")
+      .eq("id", versionId)
+      .eq("status", "published")
+      .single();
+    if (vData) {
+      displayContent = vData.content_json;
+    }
+  }
+
+  // Fetch all chapters, volumes, comment counts, progress, and VERSIONS
+  const [allChapters, allVolumes, commentCounts, progress, versions] = await Promise.all([
     getChaptersByStory(chapter.story_id),
     getVolumesByStory(chapter.story_id),
     getCommentCountsByParagraph(chapter.id),
-    getReadingProgress(chapter.story_id)
+    getReadingProgress(chapter.story_id),
+    getChapterVersions(chapter.id) // Only published ones will be shown in UI later
   ]);
+
+  const publishedVersions = versions.filter((v: any) => v.status === 'published');
 
   const isCanvasProtected = chapter.stories.is_protected;
   const hasPassword = !!chapter.password_hash;
@@ -82,6 +105,7 @@ export default async function ChapterPage({
         chapterSlug={chapterSlug}
         protectionEnabled={isCanvasProtected}
         initialScroll={progress?.chapter_id === chapter.id ? progress?.scroll_position : 0}
+        versions={publishedVersions}
       >
         {showProtected ? (
           <ProtectedContent
@@ -89,8 +113,10 @@ export default async function ChapterPage({
             isProtected={isCanvasProtected}
           />
         ) : (
-          <StaticContent
-            content={chapter.content_json}
+          <OfflineSupport
+            storyId={chapter.story_id}
+            chapterId={chapter.id}
+            initialContent={displayContent}
             settings={defaultSettings}
             commentCounts={commentCounts}
           />

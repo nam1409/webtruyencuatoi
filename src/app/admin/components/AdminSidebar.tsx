@@ -12,7 +12,8 @@ import {
   LogOut,
   Zap,
   Activity,
-  BarChart3
+  BarChart3,
+  Megaphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -46,6 +47,12 @@ const menuItems = [
     group: "Performance"
   },
   {
+    title: "Bảng tin",
+    icon: Megaphone,
+    href: "/admin/news",
+    group: "System"
+  },
+  {
     title: "Trang chủ",
     icon: LayoutDashboard,
     href: "/admin/homepage",
@@ -68,9 +75,26 @@ const menuItems = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const [stats, setStats] = useState({ stories: 0, views: 0 });
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     getGlobalStats().then(setStats);
+    
+    // Check if real admin
+    const checkRole = async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+        setIsAdmin(profile?.role === "admin");
+      }
+    };
+    checkRole();
   }, []);
 
   return (
@@ -88,7 +112,9 @@ export function AdminSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-10 overflow-y-auto no-scrollbar pr-2">
-        {["Dashboard", "Content", "Performance", "System"].map((group) => (
+        {["Dashboard", "Content", "Performance", "System"]
+          .filter(group => isAdmin || group !== "System")
+          .map((group) => (
           <div key={group} className="space-y-3">
             <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/50">
               {group}

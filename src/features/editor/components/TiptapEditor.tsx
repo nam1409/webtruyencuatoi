@@ -14,6 +14,7 @@ import Typography from "@tiptap/extension-typography";
 import Mention from "@tiptap/extension-mention";
 import suggestion from "./suggestion";
 import { useEffect, useRef, useState } from "react";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   Bold, Italic, List, ListOrdered, Quote, Undo, Redo,
   Image as ImageIcon, Type, Loader2, Sparkles, Plus,
@@ -23,6 +24,7 @@ import {
   IndentIncrease, IndentDecrease, Type as FontSizeIcon, Maximize, Minimize,
   EyeOff, Info
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Declare custom commands for TypeScript
 declare module '@tiptap/core' {
@@ -354,12 +356,15 @@ interface TiptapEditorProps {
   onChange: (content: any) => void;
   isSaving?: boolean;
   storyId: string;
+  isReadOnly?: boolean;
 }
 
-export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: TiptapEditorProps) {
+export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isReadOnly = false }: TiptapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [characters, setCharacters] = useState<any[]>([]);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
 
   useEffect(() => {
     getCharactersByStory(storyId).then(setCharacters);
@@ -404,7 +409,6 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
       Underline,
       Spoiler,
       Annotation,
-      CharacterCount,
       FontSize,
       TextStyle,
       Color,
@@ -436,7 +440,6 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
         suggestion: slashSuggestion,
         renderText: () => "",
       }),
-      Spoiler,
       NodeId,
     ],
     content: initialContent,
@@ -447,23 +450,22 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
     },
     editorProps: {
       attributes: {
-        class: "prose prose-lg dark:prose-invert focus:outline-none max-w-none min-h-[600px] p-4 sm:p-24 font-serif leading-relaxed selection:bg-primary/20",
+        class: cn(
+          "prose prose-lg dark:prose-invert focus:outline-none max-w-none min-h-[600px] font-serif leading-relaxed selection:bg-primary/20 transition-all duration-500",
+          isReadOnly ? "p-4 sm:p-10 opacity-70 cursor-default" : "p-4 sm:p-24"
+        ),
       },
     },
+    editable: !isReadOnly,
     immediatelyRender: false,
   }, []); // Only init once!
 
-  const setLink = () => {
+  const handleSetLink = (url: string) => {
     if (!editor) return;
-    const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("Nhập địa chỉ URL:", previousUrl);
-
-    if (url === null) return;
     if (url === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
       return;
     }
-
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
 
@@ -519,7 +521,8 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
       )}
 
       {/* Editor Toolbar */}
-      <div className="sticky top-0 flex flex-wrap items-center gap-2 p-2 bg-background border-b border-border/50 shadow-sm">
+      {!isReadOnly && (
+        <div className="sticky top-0 flex flex-wrap items-center gap-2 p-2 bg-background border-b border-border/50 shadow-sm">
         {/* Style Dropdown */}
         <div className="flex items-center gap-0.5 bg-muted/30 p-1 rounded-xl">
           <select
@@ -739,7 +742,10 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
         {/* Links & Media Group */}
         <div className="flex items-center gap-0.5 bg-muted/30 p-1 rounded-xl">
           <button
-            onClick={setLink}
+            onClick={() => {
+              setLinkUrl(editor.getAttributes("link").href || "");
+              setShowLinkDialog(true);
+            }}
             className={`p-2 rounded-lg hover:bg-background transition-all ${editor.isActive("link") ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}
             title="Chèn liên kết"
           >
@@ -786,6 +792,7 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
 
         <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
       </div>
+      )}
 
       {/* Editor Surface */}
       <div className="relative min-h-[800px]">
@@ -987,7 +994,17 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId }: Ti
         background-color: rgba(139, 92, 246, 0.05);
         cursor: help;
       }
-    `}</style>
+      `}</style>
+      <PromptDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        title="Chèn liên kết"
+        description="Nhập địa chỉ URL bạn muốn liên kết đến văn bản đã chọn."
+        placeholder="https://..."
+        defaultValue={linkUrl}
+        onConfirm={handleSetLink}
+        label="Đường dẫn URL"
+      />
     </div>
   );
 }

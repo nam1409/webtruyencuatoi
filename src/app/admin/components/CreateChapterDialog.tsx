@@ -52,9 +52,10 @@ export function CreateChapterDialog({ storyId }: { storyId: string }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger>
-        <Button className="w-full md:w-auto rounded-2xl font-black uppercase tracking-widest h-14 px-8 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all" />
-        <Plus className="mr-2 w-5 h-5" /> Thêm chương mới
+      <DialogTrigger asChild>
+        <Button className="w-full md:w-auto rounded-2xl font-black uppercase tracking-widest h-14 px-8 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <Plus className="mr-2 w-5 h-5" /> Thêm chương mới
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden">
         <form onSubmit={handleSubmit}>

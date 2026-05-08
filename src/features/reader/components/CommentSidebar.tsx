@@ -77,6 +77,30 @@ export function CommentSidebar({
     }
   };
 
+  useEffect(() => {
+    // Auto-expand thread if linked comment is a reply
+    if (initialComments.length > 0 && typeof window !== 'undefined' && window.location.hash.startsWith('#comment-')) {
+      const commentId = window.location.hash.replace('#comment-', '');
+      const targetComment = initialComments.find(c => c.id === commentId);
+      
+      if (targetComment && targetComment.parent_id) {
+        // Find the root parent to expand the correct thread
+        let rootParent = targetComment;
+        const seen = new Set();
+        while (rootParent.parent_id && !seen.has(rootParent.parent_id)) {
+          seen.add(rootParent.id);
+          const parent = initialComments.find(c => c.id === rootParent.parent_id);
+          if (!parent) break;
+          rootParent = parent;
+        }
+        
+        if (rootParent.id !== activeThreadId) {
+          setThreadStack([rootParent.id]);
+        }
+      }
+    }
+  }, [initialComments]);
+
   if (!paragraphId) return null;
 
   return (
@@ -208,7 +232,10 @@ function CommentItem({
   const hasMoreDepth = depth >= 2 && replies.length > 0;
 
   return (
-    <div className={`space-y-4 mb-8 ${depth > 0 && !isFocused ? 'ml-6 mt-4 border-l-2 border-primary/10 pl-4' : ''}`}>
+    <div 
+      id={`comment-${comment.id}`}
+      className={`space-y-4 mb-8 transition-all duration-500 target:bg-primary/5 target:ring-2 target:ring-primary/20 target:p-2 target:rounded-2xl scroll-mt-20 ${depth > 0 && !isFocused ? 'ml-6 mt-4 border-l-2 border-primary/10 pl-4' : ''}`}
+    >
       <div className="group animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">

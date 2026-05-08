@@ -6,7 +6,7 @@ import {
   Globe, AlignLeft, ImagePlus, X, Save, Heart, DollarSign,
   QrCode, ChevronLeft, Loader2, Sparkles, LayoutGrid, Tag, ShieldCheck, Flag,
   Users,
-  Layers, Lock, Calendar
+  Layers, Lock, Calendar, WifiOff
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ export function StoryForm({ initialData, isEditing = false, availableGenres = []
   const [genres, setGenres] = useState<string[]>(initialData?.genres || []);
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [tagInput, setTagInput] = useState("");
+  const [allowOffline, setAllowOffline] = useState(initialData?.allow_offline || false);
   const [scheduledAt, setScheduledAt] = useState(
     initialData?.scheduled_at
       ? new Date(initialData.scheduled_at).toISOString().slice(0, 16)
@@ -122,6 +123,7 @@ export function StoryForm({ initialData, isEditing = false, availableGenres = []
         source: source || null,
         translator_name: translatorName || null,
         owner_role: ownerRole,
+        allow_offline: allowOffline,
         scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null
       };
 
@@ -347,6 +349,18 @@ export function StoryForm({ initialData, isEditing = false, availableGenres = []
                         <Switch
                           checked={isPrivate}
                           onCheckedChange={setIsPrivate}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <label className="text-xs md:text-sm font-black flex items-center gap-2">
+                            <WifiOff className="w-4 h-4 text-primary" /> Đọc Offline
+                          </label>
+                          <p className="text-[9px] md:text-[11px] font-bold text-muted-foreground/50 leading-none">Cho phép tải và mã hóa</p>
+                        </div>
+                        <Switch
+                          checked={allowOffline}
+                          onCheckedChange={setAllowOffline}
                         />
                       </div>
                     </div>

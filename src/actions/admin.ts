@@ -8,13 +8,36 @@ export async function checkAdminRole() {
 
   if (!user) return false;
 
-  const { data: profile } = await supabase
+  // 1. Check global admin role
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  return profile?.role === "admin";
+  if (profile?.role === "admin") return true;
+
+  // 2. Check if user is an author of any story
+  const { count: storiesCount, error: storiesError } = await supabase
+    .from("stories")
+    .select("*", { count: "exact", head: true })
+    .eq("author_id", user.id);
+
+  if (storiesCount && storiesCount > 0) return true;
+
+  // 3. Check if user is a collaborator in any story
+  const { count: collabCount, error: collabError } = await supabase
+    .from("story_collaborators")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  const isCollab = collabCount !== null && collabCount > 0;
+  
+  if (!isCollab) {
+    console.log(`Access Denied for ${user.email}: Admin: ${profile?.role === "admin"}, Author count: ${storiesCount}, Collab count: ${collabCount}`);
+  }
+
+  return isCollab;
 }
 
 export async function getGlobalStats() {

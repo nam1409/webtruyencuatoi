@@ -27,6 +27,7 @@ interface ReaderLayoutProps {
   chapterSlug?: string;
   protectionEnabled?: boolean;
   initialScroll?: number;
+  versions?: any[];
 }
 
 export function ReaderLayout({
@@ -41,6 +42,7 @@ export function ReaderLayout({
   chapterSlug = "",
   protectionEnabled = true,
   initialScroll = 0,
+  versions = [],
 }: ReaderLayoutProps) {
   const { settings, comments, setComments } = useReader();
   const [showSettings, setShowSettings] = useState(false);
@@ -79,6 +81,26 @@ export function ReaderLayout({
   useEffect(() => {
     loadData();
   }, [chapterId, storyId]);
+
+  // Handle direct comment linking from notifications
+  useEffect(() => {
+    if (comments.length > 0 && typeof window !== 'undefined' && window.location.hash.startsWith('#comment-')) {
+      const commentId = window.location.hash.replace('#comment-', '');
+      const linkedComment = comments.find(c => c.id === commentId);
+      if (linkedComment) {
+        // Open the sidebar for the correct paragraph
+        setSelectedParagraph(linkedComment.paragraph_id || "general");
+        
+        // If it's a paragraph comment, scroll to that paragraph in the main content
+        if (linkedComment.paragraph_id) {
+          setTimeout(() => {
+            const el = document.querySelector(`[data-paragraph-id="${linkedComment.paragraph_id}"]`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 500);
+        }
+      }
+    }
+  }, [comments]);
 
   useContentProtection(protectionEnabled);
 
@@ -230,6 +252,30 @@ export function ReaderLayout({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Version Switcher */}
+            {versions.length > 1 && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/50 border border-border rounded-xl">
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Phiên bản:</span>
+                <select 
+                  className="bg-transparent border-none outline-none text-[10px] font-bold text-primary cursor-pointer"
+                  value={new URLSearchParams(window.location.search).get('v') || versions.find(v => v.is_primary)?.id || ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const url = new URL(window.location.href);
+                    if (v) url.searchParams.set('v', v);
+                    else url.searchParams.delete('v');
+                    window.location.href = url.toString();
+                  }}
+                >
+                  {versions.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} {v.is_primary ? '(Mặc định)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <button
               onClick={() => setShowTOC(true)}
               className="p-2.5 hover:bg-muted rounded-xl transition-all"
@@ -260,8 +306,10 @@ export function ReaderLayout({
       {/* Main Content & Sidebar Container */}
       <div className="flex-1 flex flex-row items-start justify-center relative">
         <main
-          className={`flex-1 container max-w-3xl mx-auto px-4 pt-8 pb-24 sm:pt-16 ${settings.font.startsWith('font-') ? settings.font : ''} min-w-0`}
+          className={`flex-1 container max-w-3xl mx-auto pt-8 pb-24 sm:pt-16 ${settings.font.startsWith('font-') ? settings.font : ''} min-w-0`}
           style={{
+            paddingLeft: 'var(--reader-container-padding)',
+            paddingRight: 'var(--reader-container-padding)',
             fontSize: `${settings.fontSize}px`,
             lineHeight: settings.lineHeight,
             fontFamily: settings.font === 'font-serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : 
@@ -278,13 +326,13 @@ export function ReaderLayout({
 
             <div className="reader-content text-left selection:bg-primary/20 relative overflow-hidden">
               {protectionEnabled && (
-                <div className="absolute inset-0 pointer-events-none select-none opacity-[0.03] dark:opacity-[0.02] flex flex-wrap gap-20 items-center justify-center rotate-[-25deg] z-0 overflow-hidden">
-                  {Array.from({ length: 40 }).map((_, i) => (
-                    <span key={i} className="text-4xl font-black uppercase tracking-[0.5em] whitespace-nowrap">
-                      ZenStory Elite
-                    </span>
-                  ))}
-                </div>
+                <div 
+                  className="absolute inset-0 pointer-events-none select-none opacity-[0.03] dark:opacity-[0.02] z-0"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='30' font-weight='900' font-family='sans-serif' fill='black' text-anchor='middle' transform='rotate(-25 200 200)' style='text-transform: uppercase; letter-spacing: 0.5em;'%3EZenStory Elite%3C/text%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'repeat',
+                  }}
+                />
               )}
               <div className="relative z-10">
                 {children}

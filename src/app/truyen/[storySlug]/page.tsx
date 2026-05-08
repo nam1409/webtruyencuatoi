@@ -36,16 +36,20 @@ export async function generateMetadata(
   };
 }
 import { 
-  BookOpen, 
-  Clock, 
-  ChevronRight, 
-  Star, 
-  Layers, 
-  FileText, 
-  Play, 
+  Tag,
+  Users,
+  Feather,
+  Globe,
+  BookOpen,
+  Play,
+  Star,
+  Layers,
+  FileText,
   Calendar,
-  Tag
+  Clock,
+  ChevronRight
 } from "lucide-react";
+import { getCollaborators } from "@/actions/collaborators";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { getSiteSettings } from "@/actions/settings";
@@ -54,6 +58,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { getStoryRating } from "@/actions/ratings";
 import { RatingSystem } from "@/components/story/RatingSystem";
 import { ViewCounter } from "@/features/reader/components/ViewCounter";
+import { FollowButton } from "@/components/story/FollowButton";
+import { DownloadStoryButton } from "@/components/story/DownloadStoryButton";
 
 export default async function StoryDetailPage({ params }: { params: Promise<{ storySlug: string }> }) {
   const { storySlug } = await params;
@@ -78,10 +84,11 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
     notFound();
   }
 
-  const [allChapters, volumes, ratingData] = await Promise.all([
+  const [allChapters, volumes, ratingData, collaborators] = await Promise.all([
     getChaptersByStory(story.id, true),
     getVolumesByStory(story.id),
-    getStoryRating(story.id)
+    getStoryRating(story.id),
+    getCollaborators(story.id)
   ]);
 
   // Chapters are already filtered by the action
@@ -165,12 +172,14 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
             <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-[0.9]">{story.title}</h1>
             
             <div className="flex flex-col md:flex-row md:items-center gap-6 pt-2">
-              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50">
-                    <img src={story.profiles?.avatar_url} className="w-full h-full object-cover" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                    <Users className="w-4 h-4" />
                   </div>
-                  <span className="text-sm font-bold text-muted-foreground">{story.profiles?.display_name || "Tác giả ẩn danh"}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">Người đăng</span>
+                    <span className="text-sm font-bold text-foreground">{story.profiles?.display_name || "Thành viên"}</span>
+                  </div>
                 </div>
                 <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
                 <div className="flex items-center gap-1.5 text-muted-foreground text-sm font-medium">
@@ -185,7 +194,6 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
             </div>
           </div>
         </div>
-      </div>
 
       {/* Content Tabs/Grid */}
       <div className="container max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-12 mt-12">
@@ -202,9 +210,14 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
             ) : (
               <Button disabled className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest">Chưa có chương</Button>
             )}
-            <Button variant="outline" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest border-2 gap-2">
-              <Star className="w-5 h-5" /> Theo dõi
-            </Button>
+            <FollowButton storyId={story.id} userId={user?.id} />
+            <DownloadStoryButton 
+              storyId={story.id} 
+              storyTitle={story.title} 
+              storySlug={story.slug}
+              coverUrl={story.cover_url}
+              allowOffline={story.allow_offline} 
+            />
           </div>
 
           {/* Description */}
@@ -270,6 +283,26 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-muted/50 rounded-xl flex items-center justify-center text-muted-foreground">
+                  <Feather className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground/60 leading-none mb-1">Tác giả gốc</p>
+                  <p className="text-xs font-bold truncate max-w-[140px]">{story.author_name || "Đang cập nhật"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-muted/50 rounded-xl flex items-center justify-center text-muted-foreground">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground/60 leading-none mb-1">Nhóm dịch</p>
+                  <p className="text-xs font-bold truncate max-w-[140px]">{story.translator_name || "Đang cập nhật"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-muted/50 rounded-xl flex items-center justify-center text-muted-foreground">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
@@ -301,6 +334,46 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
                   <p className="text-xs font-bold">Vừa mới xong</p>
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* Collaborators & Staff */}
+          <section className="bg-background rounded-[2.5rem] border border-border/50 p-8 space-y-6 shadow-sm">
+            <h2 className="text-sm font-black uppercase tracking-widest border-b border-border pb-4 flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Nhân sự thực hiện
+            </h2>
+            
+            <div className="space-y-4">
+              {/* Uploader (Author) */}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50 flex-shrink-0">
+                  <img src={story.profiles?.avatar_url} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-xs font-bold truncate">{story.profiles?.display_name || "Thành viên"}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-primary leading-none">Uploader</p>
+                </div>
+              </div>
+
+              {/* Other Collaborators */}
+              {collaborators.map((collab: any) => (
+                <div key={collab.id} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50 flex-shrink-0">
+                    <img src={collab.profiles?.avatar_url} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-xs font-bold truncate">{collab.profiles?.display_name || collab.profiles?.username}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">
+                      {collab.role || "Editor"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {collaborators.length === 0 && (
+                <p className="text-[10px] font-medium text-muted-foreground italic">Chưa có cộng tác viên khác.</p>
+              )}
             </div>
           </section>
 

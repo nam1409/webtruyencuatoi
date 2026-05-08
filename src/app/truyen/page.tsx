@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { searchStories } from "@/actions/stories";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function DiscoveryPage() {
   const [stories, setStories] = useState<any[]>([]);
@@ -16,61 +19,33 @@ export default function DiscoveryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [dynamicGenres, setDynamicGenres] = useState<string[]>(["Tất cả"]);
 
-  useEffect(() => {
-    async function loadStories() {
-      setIsLoading(true);
-      const supabase = createClient();
-      
-      const { data, error } = await supabase
-        .from("stories")
-        .select(`
-          *,
-          profiles:author_id (display_name, avatar_url),
-          chapters:chapters(count)
-        `)
-        .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
-        .eq("chapters.status", "published")
-        .order("created_at", { ascending: false });
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  
+  const fetchStories = async () => {
+    setIsLoading(true);
+    const data = await searchStories(debouncedSearch, selectedGenre);
+    setStories(data);
+    setFilteredStories(data);
 
-      if (data) {
-        const storiesWithCount = data.map(s => ({
-          ...s,
-          chapter_count: s.chapters?.[0]?.count || 0
-        }));
-        setStories(storiesWithCount);
-        setFilteredStories(storiesWithCount);
-
-        // Tổng hợp thể loại động từ dữ liệu thực tế
-        const genresSet = new Set<string>();
-        genresSet.add("Tất cả");
-        data.forEach(story => {
-          if (story.genres && Array.isArray(story.genres)) {
-            story.genres.forEach((g: string) => genresSet.add(g));
-          }
-        });
-        setDynamicGenres(Array.from(genresSet));
-      }
-      setIsLoading(false);
+    if (dynamicGenres.length <= 1) {
+      // Chỉ tổng hợp thể loại một lần duy nhất lúc đầu hoặc khi có dữ liệu mới
+      const genresSet = new Set<string>();
+      genresSet.add("Tất cả");
+      data.forEach(story => {
+        if (story.genres && Array.isArray(story.genres)) {
+          story.genres.forEach((g: string) => genresSet.add(g));
+        }
+      });
+      setDynamicGenres(Array.from(genresSet));
     }
-    loadStories();
-  }, []);
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    let result = stories;
+    fetchStories();
+  }, [debouncedSearch, selectedGenre]);
 
-    if (searchQuery) {
-      result = result.filter(s => 
-        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (selectedGenre !== "Tất cả") {
-      result = result.filter(s => s.genres && s.genres.includes(selectedGenre));
-    }
-
-    setFilteredStories(result);
-  }, [searchQuery, selectedGenre, stories]);
+  // Xóa bỏ client-side filter useEffect vì đã chuyển sang server-side
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -126,14 +101,14 @@ export default function DiscoveryPage() {
               </div>
             </div>
 
-            <div className="p-8 bg-primary/5 rounded-[2.5rem] border border-primary/10 relative overflow-hidden group">
+            {/* <div className="p-8 bg-primary/5 rounded-[2.5rem] border border-primary/10 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-3xl -translate-y-12 translate-x-12 group-hover:scale-150 transition-transform duration-1000" />
               <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">Đăng ký tác giả</h4>
               <p className="text-xs text-muted-foreground/80 leading-relaxed mb-6 font-medium italic">Bắt đầu hành trình sáng tác và xây dựng cộng đồng của riêng bạn ngay hôm nay.</p>
               <Link href="/register">
                 <Button className="w-full rounded-2xl text-[10px] font-black uppercase tracking-widest h-12 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">Tham gia ngay</Button>
               </Link>
-            </div>
+            </div> */}
           </aside>
 
           {/* Stories Grid */}
@@ -171,7 +146,14 @@ export default function DiscoveryPage() {
                       {/* Cover Area */}
                       <div className="aspect-[3/4.2] relative overflow-hidden bg-muted">
                         {story.cover_url ? (
-                          <img src={story.cover_url} alt={story.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-1" />
+                          <Image 
+                            src={story.cover_url} 
+                            alt={story.title} 
+                            fill
+                            unoptimized
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            className="object-cover transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-1" 
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/20">
                             <BookOpen className="w-16 h-16 text-primary/10" />
@@ -223,9 +205,16 @@ export default function DiscoveryPage() {
 
                         <div className="flex items-center justify-between pt-6 border-t border-border/30">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-muted overflow-hidden border border-border shadow-sm">
+                            <div className="w-8 h-8 rounded-xl bg-muted overflow-hidden border border-border shadow-sm relative">
                               {story.profiles?.avatar_url ? (
-                                <img src={story.profiles.avatar_url} alt="Author" className="w-full h-full object-cover" />
+                                <Image 
+                                  src={story.profiles.avatar_url} 
+                                  alt="Author" 
+                                  fill
+                                  unoptimized
+                                  sizes="32px"
+                                  className="object-cover" 
+                                />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary/30 font-black text-[10px]">
                                   {story.profiles?.display_name?.[0] || "U"}

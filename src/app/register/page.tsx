@@ -50,8 +50,8 @@ export default function RegisterPage() {
 
         <Card className="border-none shadow-2xl bg-background/80 backdrop-blur-xl">
           <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-3xl font-black tracking-tighter">Gia nhập ZenStory</CardTitle>
-            <CardDescription>Bắt đầu hành trình sáng tạo của bạn ngay hôm nay</CardDescription>
+            <CardTitle className="text-3xl font-black tracking-tighter">Đăng ký tài khoản</CardTitle>
+            <CardDescription>Bắt đầu hành trình của bạn ngay hôm nay</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-4">
@@ -65,7 +65,7 @@ export default function RegisterPage() {
                 <Input name="password" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" className="h-11 rounded-xl bg-muted/30 border-none" required />
               </div>
               <Button type="submit" className="h-11 rounded-xl font-bold shadow-lg" disabled={isLoading}>
-                {isLoading ? "Đang tạo tài khoản..." : "Đăng ký tác giả"}
+                {isLoading ? "Đang tạo tài khoản..." : "Đăng ký tài khoản"}
               </Button>
             </form>
           </CardContent>

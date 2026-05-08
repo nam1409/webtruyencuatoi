@@ -15,6 +15,7 @@ import {
 import { uploadImage } from "@/lib/storage";
 import { toast } from "sonner";
 import { useRef, useState } from "react";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 
 interface AdminTiptapEditorProps {
   content: any;
@@ -25,6 +26,8 @@ interface AdminTiptapEditorProps {
 export function AdminTiptapEditor({ content, onChange, placeholder }: AdminTiptapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
 
   const editor = useEditor({
     extensions: [
@@ -143,8 +146,8 @@ export function AdminTiptapEditor({ content, onChange, placeholder }: AdminTipta
         <button
           type="button"
           onClick={() => {
-            const url = window.prompt("Nhập URL liên kết:");
-            if (url) editor.chain().focus().setLink({ href: url }).run();
+            setLinkUrl(editor.getAttributes("link").href || "");
+            setShowLinkDialog(true);
           }}
           className={`p-2 rounded-lg transition-all ${editor.isActive("link") ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:bg-background"}`}
         >
@@ -170,6 +173,23 @@ export function AdminTiptapEditor({ content, onChange, placeholder }: AdminTipta
       </div>
       <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
       <EditorContent editor={editor} />
+
+      <PromptDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        title="Chèn liên kết"
+        description="Nhập địa chỉ URL cho liên kết này."
+        placeholder="https://..."
+        defaultValue={linkUrl}
+        onConfirm={(url) => {
+          if (url === "") {
+            editor.chain().focus().extendMarkRange("link").unsetLink().run();
+          } else {
+            editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+          }
+        }}
+        label="URL liên kết"
+      />
     </div>
   );
 }

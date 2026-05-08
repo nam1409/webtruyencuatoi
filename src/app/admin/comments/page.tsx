@@ -6,8 +6,13 @@ import { vi } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
-export default async function AdminCommentsPage() {
-  const comments = await getAdminComments();
+export default async function AdminCommentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ chapterId?: string }>;
+}) {
+  const { chapterId } = await searchParams;
+  const comments = await getAdminComments(chapterId);
 
   return (
     <div className="space-y-10">
@@ -40,7 +45,11 @@ export default async function AdminCommentsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {comments.map((comment: any) => (
-            <Card key={comment.id} className="group border-none shadow-xl shadow-black/[0.02] rounded-[2.5rem] bg-background/50 backdrop-blur-md overflow-hidden hover:scale-[1.01] transition-all duration-500">
+            <Card 
+              key={comment.id} 
+              id={`comment-${comment.id}`} 
+              className="group border-none shadow-xl shadow-black/[0.02] rounded-[2.5rem] bg-background/50 backdrop-blur-md overflow-hidden hover:scale-[1.01] transition-all duration-500 target:ring-4 target:ring-primary/20 target:shadow-primary/40 scroll-mt-24"
+            >
               <CardContent className="p-8">
                 <div className="flex flex-col md:flex-row gap-8">
                   {/* User Profile */}

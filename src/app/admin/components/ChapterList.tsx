@@ -312,6 +312,13 @@ function ChapterCard({
           <Link href={`/admin/editor/${chapter.id}`} className="p-2.5 bg-primary/5 text-primary rounded-xl hover:bg-primary hover:text-primary-foreground transition-all duration-300">
             <Edit3 className="w-4 h-4" />
           </Link>
+          <Link 
+            href={`/admin/comments?chapterId=${chapter.id}`}
+            className="p-2.5 bg-muted text-muted-foreground rounded-xl hover:bg-primary/10 hover:text-primary transition-all duration-300"
+            title="Quản lý bình luận"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </Link>
           <button onClick={() => onDelete(chapter.id)} className="p-2.5 bg-muted text-muted-foreground rounded-xl hover:bg-destructive hover:text-destructive-foreground transition-all duration-300">
             <Trash2 className="w-4 h-4" />
           </button>

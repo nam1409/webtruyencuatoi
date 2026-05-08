@@ -4,22 +4,26 @@ import React, { useState } from "react";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
 import { cn } from "@/lib/utils";
+import { AdminShellProvider, useAdminShell } from "../context/AdminShellContext";
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+function AdminShellContent({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { hideSidebar } = useAdminShell();
 
   return (
     <div className="flex min-h-screen bg-background dark:bg-zinc-950">
       {/* Sidebar - Desktop & Mobile */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 lg:relative lg:translate-x-0 transition-transform duration-500",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <AdminSidebar />
-      </div>
+      {!hideSidebar && (
+        <div className={cn(
+          "fixed inset-y-0 left-0 z-50 lg:relative lg:translate-x-0 transition-transform duration-500",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
+          <AdminSidebar />
+        </div>
+      )}
 
       {/* Mobile Overlay */}
-      {isSidebarOpen && (
+      {isSidebarOpen && !hideSidebar && (
         <div 
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
@@ -28,13 +32,27 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <AdminHeader onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto px-0 md:px-6 lg:px-10">
-          <div className="max-w-[1600px] mx-auto py-2 md:py-8">
+        {!hideSidebar && <AdminHeader onMenuClick={() => setIsSidebarOpen(true)} />}
+        <main className={cn(
+          "flex-1 overflow-y-auto px-0 md:px-6 lg:px-10",
+          hideSidebar ? "lg:px-0 md:px-0" : ""
+        )}>
+          <div className={cn(
+            "mx-auto py-2 md:py-8",
+            hideSidebar ? "max-w-none py-0 md:py-0" : "max-w-[1600px]"
+          )}>
             {children}
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+export function AdminShell({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminShellProvider>
+      <AdminShellContent>{children}</AdminShellContent>
+    </AdminShellProvider>
   );
 }

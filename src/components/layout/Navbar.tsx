@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { NotificationCenter } from "../notifications/NotificationCenter";
+import { ThemeToggle } from "./ThemeToggle";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
+import { Button } from "../ui/button";
 
 interface NavbarProps {
   user: any;
@@ -16,14 +18,23 @@ interface NavbarProps {
 export function Navbar({ user, settings }: NavbarProps) {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [canAccessAdmin, setCanAccessAdmin] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
+
+    // Check admin/collab access
+    if (user) {
+      import("@/actions/admin").then(({ checkAdminRole }) => {
+        checkAdminRole().then(setCanAccessAdmin);
+      });
+    }
+
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [user]);
 
   const primaryColor = settings?.primary_color || "#8b5cf6";
 
@@ -39,12 +50,22 @@ export function Navbar({ user, settings }: NavbarProps) {
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
         <Link href="/" className="text-2xl font-black tracking-tighter flex items-center gap-2 group">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-xs shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform duration-500">
-            {settings?.site_name?.[0] || "Z"}
-          </div>
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
-            {settings?.site_name || "ZenStory"}
-          </span>
+          {settings?.logo_url ? (
+            <img 
+              src={settings.logo_url} 
+              alt={settings.site_name || "ZenStory"} 
+              className="h-8 w-auto object-contain transition-transform group-hover:scale-105" 
+            />
+          ) : (
+            <>
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-xs shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform duration-500">
+                {settings?.site_name?.[0] || "Z"}
+              </div>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
+                {settings?.site_name || "ZenStory"}
+              </span>
+            </>
+          )}
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
@@ -68,13 +89,15 @@ export function Navbar({ user, settings }: NavbarProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-4">
-              {user.role === 'admin' && (
+              {canAccessAdmin && (
                 <Link href="/admin" className="hidden sm:block">
                   <Button variant="outline" className="rounded-xl border-primary/20 hover:border-primary/50 text-primary font-bold shadow-sm">
                     Bảng điều khiển
                   </Button>
                 </Link>
               )}
+              <ThemeToggle />
+              <NotificationCenter />
               <Link href="/profile" className="w-10 h-10 rounded-xl bg-muted overflow-hidden border border-border shadow-sm hover:border-primary transition-all group">
                 {user.avatar_url ? (
                   <img src={user.avatar_url} className="w-full h-full object-cover" />

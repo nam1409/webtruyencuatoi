@@ -138,11 +138,10 @@ export function EpubImportDialog() {
           
           const jsonContent = generateJSON(htmlContent, [
             StarterKit,
-            Underline,
             TextAlign.configure({ types: ["heading", "paragraph"] }),
           ]);
           
-          await createChapter(newStory.id, chapterTitle, chapterSlug, null, jsonContent);
+          await createChapter(newStory.id, chapterTitle, chapterSlug, null, jsonContent, "Auto Import");
         }
 
         const p = 10 + ((i + 1) / spineItems.length) * 90;

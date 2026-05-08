@@ -3,17 +3,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function getAdminComments() {
+export async function getAdminComments(chapterId?: string) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("comments")
     .select(`
       *,
       profiles:user_id (display_name, avatar_url),
       chapters:chapter_id (title, story_id, stories(title))
-    `)
-    .order("created_at", { ascending: false });
+    `);
+
+  if (chapterId) {
+    query = query.eq("chapter_id", chapterId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching comments:", error);
@@ -87,7 +92,7 @@ export async function createComment(data: {
   // Get chapter info to find the story and author
   const { data: chapter } = await supabase
     .from("chapters")
-    .select("title, story_id")
+    .select("id, title, slug, story_id, stories(title, slug, author_id)")
     .eq("id", data.chapter_id)
     .single();
 
@@ -104,20 +109,42 @@ export async function createComment(data: {
   if (error) throw new Error(error.message);
 
   // Notify the author
-  if (chapter) {
-    const story = await getStoryById(chapter.story_id);
-    if (story && story.author_id !== user.id) {
+  if (chapter && chapter.stories) {
+    const story = chapter.stories;
+    
+    // 1. Notify Story Author
+    if (story.author_id !== user.id) {
       await createNotification(
         story.author_id,
         "comment",
         "Bình luận mới",
         `Độc giả đã để lại bình luận tại chương "${chapter.title}" của truyện "${story.title}"`,
-        `/admin/comments`
+        `/admin/comments?chapterId=${data.chapter_id}#comment-${comment.id}`
       );
     }
-  }
 
-  revalidatePath(`/truyen/[storySlug]/[chapterSlug]`);
+    // 2. Notify Parent Commenter (if it's a reply)
+    if (data.parent_id) {
+      const { data: parentComment } = await supabase
+        .from("comments")
+        .select("user_id")
+        .eq("id", data.parent_id)
+        .single();
+
+      if (parentComment && parentComment.user_id !== user.id) {
+        await createNotification(
+          parentComment.user_id,
+          "reply",
+          "Phản hồi mới",
+          `Có người đã phản hồi bình luận của bạn tại chương "${chapter.title}"`,
+          `/truyen/${story.slug}/${chapter.slug}#comment-${comment.id}`
+        );
+      }
+    }
+
+    // Targeted Revalidation (Temporarily disabled for debugging)
+    revalidatePath(`/truyen/${story.slug}/${chapter.slug}`);
+  }
   return comment;
 }
 

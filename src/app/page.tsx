@@ -1,10 +1,16 @@
-import { BookOpen, PenTool, Zap, Shield, ChevronRight, Star, BarChart3, Trophy, Tag } from "lucide-react";
+import { BookOpen, PenTool, Zap, Shield, ChevronRight, Star, BarChart3, Trophy, Tag, Megaphone, Sparkles, Clock, Info } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteSettings } from "@/actions/settings";
 import { renderTiptapContent } from "@/lib/renderer";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { getNews } from "@/actions/news";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
+import { OfflineLibrary } from "@/components/home/OfflineLibrary";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -19,13 +25,14 @@ export default async function HomePage() {
       .select('*')
       .eq('id', authUser.id)
       .single();
-    
+
     user = profile ? { ...authUser, ...profile } : authUser;
   }
-  
+
   // Get layout configuration, fallback to default if empty
   const layout = settings?.homepage_layout || [
     { type: 'hero', id: 'h1', enabled: true },
+    { type: 'news', id: 'n1', enabled: true, title: 'ZenBoard' },
     { type: 'latest', id: 'l1', enabled: true, title: 'Mới Cập Nhật', limit: 12 },
     { type: 'popular', id: 'p1', enabled: true, title: 'Truyện Hot', limit: 6 }
   ];
@@ -37,6 +44,7 @@ export default async function HomePage() {
       <Navbar user={user} settings={settings} />
 
       <main className="flex-1">
+        <OfflineLibrary />
         {layout.map((section: any) => {
           if (!section.enabled) return null;
 
@@ -55,6 +63,8 @@ export default async function HomePage() {
               return <GenresSection key={section.id} section={section} settings={settings} />;
             case 'stats':
               return <StatsSection key={section.id} />;
+            case 'news':
+              return <ZenBoard key={section.id} section={section} />;
             default:
               return null;
           }
@@ -81,7 +91,14 @@ async function HeroSection({ settings, section }: { settings: any, section: any 
     <section className="relative py-24 sm:py-40 overflow-hidden">
       {heroImage ? (
         <div className="absolute inset-0 z-0">
-          <img src={heroImage} alt="Banner" className="w-full h-full object-cover opacity-10 blur-sm" />
+          <Image
+            src={heroImage}
+            alt="Banner"
+            fill
+            priority
+            unoptimized
+            className="object-cover opacity-10 blur-sm"
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background to-background" />
         </div>
       ) : (
@@ -110,7 +127,7 @@ async function HeroSection({ settings, section }: { settings: any, section: any 
           </Link>
           <Link href="/register">
             <Button size="lg" variant="outline" className="h-16 px-10 rounded-[2rem] text-sm font-black uppercase tracking-widest border-2 hover:bg-muted transition-all">
-              Bắt đầu sáng tác
+              Đăng ký tài khoản
             </Button>
           </Link>
         </div>
@@ -124,7 +141,9 @@ async function LatestSection({ section, supabase }: { section: any, supabase: an
     .from("stories")
     .select(`
       *,
-      profiles:author_id (display_name, avatar_url)
+      profiles:author_id (display_name, avatar_url),
+      chapters:chapters(count),
+      ratings:ratings(rating)
     `)
     .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
     .limit(section.limit || 6)
@@ -164,7 +183,9 @@ async function PopularSection({ section, supabase, title, isTrending }: { sectio
     .from("stories")
     .select(`
       *,
-      profiles:author_id (display_name, avatar_url)
+      profiles:author_id (display_name, avatar_url),
+      chapters:chapters(count),
+      ratings:ratings(rating)
     `)
     .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
     .limit(section.limit || 6)
@@ -197,7 +218,7 @@ async function PopularSection({ section, supabase, title, isTrending }: { sectio
 
 function CustomSection({ section }: { section: any }) {
   if (!section.content) return null;
-  
+
   return (
     <section className="py-24 border-y border-border/10">
       <div className="container mx-auto px-4">
@@ -211,7 +232,7 @@ function CustomSection({ section }: { section: any }) {
 
 function GenresSection({ settings, section }: { settings: any, section: any }) {
   const genres = settings?.site_genres || [];
-  
+
   return (
     <section className="py-24 bg-accent/5">
       <div className="container mx-auto px-4">
@@ -225,8 +246,8 @@ function GenresSection({ settings, section }: { settings: any, section: any }) {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {genres.map((genre: string) => (
-            <Link 
-              key={genre} 
+            <Link
+              key={genre}
               href={`/truyen?genre=${encodeURIComponent(genre)}`}
               className="flex items-center justify-center p-6 bg-background border border-border/50 rounded-2xl hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all group"
             >
@@ -265,46 +286,226 @@ async function StatsSection() {
 }
 
 function StoryCard({ story }: { story: any }) {
+  const chapterCount = story.chapters?.[0]?.count || 0;
+  const views = story.views_count_total || 0;
+  const formattedViews = views >= 1000 ? (views / 1000).toFixed(1) + 'k' : views;
+
+  // Calculate average rating
+  const ratings = story.ratings || [];
+  const averageRating = ratings.length > 0 
+    ? (ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / ratings.length).toFixed(1)
+    : "0.0";
+
   return (
-    <Link href={`/truyen/${story.slug}`} className="group relative bg-background rounded-[2.5rem] overflow-hidden border border-border/50 hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 flex flex-col h-full">
-      <div className="aspect-[4/5] bg-muted relative overflow-hidden">
+    <Link href={`/truyen/${story.slug}`} className="group relative bg-background rounded-[3rem] overflow-hidden border border-border/50 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-700 hover:-translate-y-3 flex flex-col h-full">
+      {/* Top Image Section */}
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
         {story.cover_url ? (
-          <img src={story.cover_url} alt={story.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+          <Image
+            src={story.cover_url}
+            alt={story.title}
+            fill
+            unoptimized
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-1000 group-hover:scale-110"
+          />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-accent/20 flex items-center justify-center text-4xl font-serif italic text-primary/20">
-            {story.title[0]}
+          <div className="w-full h-full flex items-center justify-center relative overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, var(--primary) 0%, #000 150%)`,
+              opacity: 0.8
+            }}>
+            <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-black/40" />
+
+            {/* Artistic Initial */}
+            <div className="relative z-10 flex flex-col items-center">
+              <span className="text-[12rem] font-black text-white/5 italic select-none leading-none -mb-8">
+                {story.title[0]}
+              </span>
+              <div className="w-16 h-1 bg-primary/30 rounded-full blur-sm" />
+            </div>
+
+            <BookOpen className="w-16 h-16 text-white/10 absolute bottom-12 right-12 -rotate-12" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 opacity-60 group-hover:opacity-90 transition-opacity" />
-        
-        <div className="absolute bottom-8 left-8 right-8 z-20">
-          <div className="flex gap-2 mb-4">
-            {story.genres?.slice(0, 1).map((g: string) => (
-              <span key={g} className="text-[9px] font-black px-3 py-1 bg-primary text-primary-foreground rounded-lg uppercase tracking-widest">{g}</span>
+
+        {/* Badges Overlay */}
+        <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start pointer-events-none">
+          <div className="flex flex-col gap-2">
+            <span className={cn(
+              "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-xl backdrop-blur-md",
+              story.status === 'completed'
+                ? "bg-emerald-500 text-white border-emerald-400"
+                : "bg-white text-zinc-900 border-white"
+            )}>
+              {story.status === 'completed' ? 'Hoàn tất' : 'Đang ra'}
+            </span>
+            {story.is_protected && (
+              <span className="w-fit px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-amber-400 text-amber-950 border border-amber-300 shadow-lg shadow-amber-500/20">
+                Elite Protected
+              </span>
+            )}
+          </div>
+          <div className="px-2 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-white text-[9px] font-bold flex items-center gap-1">
+            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+            {averageRating}
+          </div>
+        </div>
+
+        {/* Bottom Shadow for Image */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent z-10" />
+      </div>
+
+      {/* Content Section */}
+      <div className="p-8 pt-4 flex-1 flex flex-col">
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {story.genres?.slice(0, 2).map((g: string) => (
+              <span key={g} className="text-[8px] font-black px-2 py-0.5 bg-primary/5 text-primary rounded uppercase tracking-widest border border-primary/10">{g}</span>
             ))}
           </div>
-          <h3 className="text-2xl font-black text-white mb-2 leading-tight group-hover:text-primary transition-colors line-clamp-2">{story.title}</h3>
+          <h3 className="text-xl font-black text-foreground leading-tight tracking-tight group-hover:text-primary transition-colors duration-300 line-clamp-2 min-h-[3rem]">
+            {story.title}
+          </h3>
         </div>
-      </div>
-      <div className="p-8 flex-1 flex flex-col justify-between">
-        <p className="text-sm text-muted-foreground/80 line-clamp-2 mb-8 leading-relaxed font-medium">
-          {story.description || "Tác phẩm này đang trong quá trình cập nhật thông tin chi tiết từ tác giả."}
+
+        <p className="text-[11px] text-muted-foreground/70 line-clamp-2 leading-relaxed font-medium italic mb-6">
+          {story.description || "Tác phẩm đang được cập nhật thông tin chi tiết từ tác giả."}
         </p>
-        <div className="flex items-center justify-between pt-6 border-t border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-muted overflow-hidden border border-border/50">
-               <img src={story.profiles?.avatar_url} className="w-full h-full object-cover" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none mb-1">Tác giả</span>
-              <span className="text-xs font-bold text-foreground/80">{story.profiles?.display_name || "Ẩn danh"}</span>
-            </div>
+
+        {/* Stats Row */}
+        <div className="flex items-center gap-6 mt-auto pb-6">
+          <div className="flex flex-col">
+            <span className="text-xs font-black text-foreground leading-none mb-1">{chapterCount}</span>
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Chương</span>
           </div>
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-            <ChevronRight className="w-5 h-5" />
+          <div className="w-px h-6 bg-border/50" />
+          <div className="flex flex-col">
+            <span className="text-xs font-black text-foreground leading-none mb-1">{formattedViews}</span>
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Lượt xem</span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-6 border-t border-border/30">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-muted overflow-hidden border border-border group-hover:border-primary/50 transition-colors relative">
+              {story.profiles?.avatar_url ? (
+                <Image
+                  src={story.profiles.avatar_url}
+                  alt="Author"
+                  fill
+                  unoptimized
+                  sizes="32px"
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary text-[10px] font-black">
+                  {story.profiles?.display_name?.[0] || "U"}
+                </div>
+              )}
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-tight text-foreground/60 group-hover:text-primary transition-colors line-clamp-1 max-w-[100px]">
+              {story.profiles?.display_name || "ZenAuthor"}
+            </span>
+          </div>
+
+          <div className="w-9 h-9 bg-primary/5 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+            <ChevronRight className="w-4 h-4" />
           </div>
         </div>
       </div>
     </Link>
+  );
+}
+
+async function ZenBoard({ section }: { section: any }) {
+  const news = await getNews(5);
+  const categories = ["Tất cả", "Thông báo", "Cập nhật", "Sự kiện"];
+
+  return (
+    <section className="py-12 bg-background">
+      <div className="container mx-auto px-4">
+        <div className="bg-muted/30 rounded-[3rem] p-8 border border-border/50 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Megaphone className="w-40 h-40 -rotate-12" />
+          </div>
+          
+          <div className="flex flex-col lg:flex-row gap-12 relative z-10">
+            {/* Left side: Heading */}
+            <div className="lg:w-1/3 space-y-6">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-1 bg-primary rounded-full" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Bảng tin</span>
+                </div>
+                <h2 className="text-4xl font-black tracking-tighter mb-4 italic">{section.title || "ZenBoard"}<span className="text-primary">.</span></h2>
+                <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-xs">
+                  Cập nhật những thông tin mới nhất về kỹ thuật, sự kiện và các thay đổi từ hệ thống ZenStory.
+                </p>
+              </div>
+              <Link href="/news">
+                <Button className="rounded-2xl font-bold h-12 px-8 shadow-xl shadow-primary/20">
+                  Xem tất cả tin
+                </Button>
+              </Link>
+            </div>
+
+            {/* Right side: News Feed with Tabs */}
+            <div className="lg:w-2/3">
+              <div className="flex items-center gap-4 mb-8 overflow-x-auto pb-2 no-scrollbar">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    className="whitespace-nowrap px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-border/50 hover:border-primary hover:text-primary transition-all bg-background"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                {news.length === 0 ? (
+                  <div className="py-12 text-center border-2 border-dashed border-border/50 rounded-[2rem]">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Chưa có tin tức nào mới.</p>
+                  </div>
+                ) : (
+                  news.map((item: any) => (
+                    <div key={item.id} className="flex items-center gap-6 p-5 bg-background rounded-3xl border border-border/30 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all group/item">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover/item:scale-110 transition-transform">
+                        {item.category === 'Cập nhật' ? <Zap className="w-5 h-5" /> : 
+                         item.category === 'Sự kiện' ? <Sparkles className="w-5 h-5" /> : 
+                         <Megaphone className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest",
+                            item.category === 'Cập nhật' ? "bg-blue-500/10 text-blue-500" :
+                            item.category === 'Sự kiện' ? "bg-amber-500/10 text-amber-500" :
+                            "bg-primary/10 text-primary"
+                          )}>
+                            {item.category}
+                          </span>
+                          {item.is_pinned && <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />}
+                          <span className="text-[10px] font-bold text-muted-foreground/60">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: vi })}
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-black tracking-tight truncate group-hover/item:text-primary transition-colors">
+                          {item.title}
+                        </h3>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover/item:text-primary group-hover/item:translate-x-1 transition-all" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

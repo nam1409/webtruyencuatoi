@@ -18,7 +18,8 @@ import {
   Sparkles,
   Zap,
   LayoutTemplate,
-  Tag
+  Tag,
+  Megaphone
 } from "lucide-react";
 import { updateHomepageLayout } from "@/actions/admin";
 import { toast } from "sonner";
@@ -27,7 +28,7 @@ import { AdminTiptapEditor } from "@/features/editor/components/AdminTiptapEdito
 
 interface LayoutSection {
   id: string;
-  type: "hero" | "latest" | "popular" | "trending" | "custom" | "genres";
+  type: "hero" | "latest" | "popular" | "trending" | "custom" | "genres" | "news";
   enabled: boolean;
   title?: string;
   subtitle?: string;
@@ -151,6 +152,7 @@ export function HomepageEditor({ initialLayout }: { initialLayout: LayoutSection
                         {section.type === 'trending' && <Zap className="w-4 h-4" />}
                         {section.type === 'custom' && <LayoutTemplate className="w-4 h-4" />}
                         {section.type === 'genres' && <Tag className="w-4 h-4" />}
+                        {section.type === 'news' && <Megaphone className="w-4 h-4" />}
                       </div>
                       <div className="flex flex-col">
                         <h3 className="font-bold text-lg capitalize">{section.type} Section</h3>
@@ -164,6 +166,7 @@ export function HomepageEditor({ initialLayout }: { initialLayout: LayoutSection
                           <option value="popular">Phổ biến</option>
                           <option value="trending">Xu hướng</option>
                           <option value="genres">Thể loại</option>
+                          <option value="news">Bảng tin (ZenBoard)</option>
                           <option value="custom">Nội dung tùy chỉnh</option>
                           <option value="hero" disabled>Hero (Mặc định)</option>
                         </select>
