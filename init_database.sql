@@ -47,19 +47,12 @@ CREATE OR REPLACE FUNCTION "public"."handle_chapter_version"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-  INSERT INTO chapter_versions (chapter_id, content_json, edited_by)
-  VALUES (OLD.id, OLD.content_json, auth.uid());
+  -- Chỉ tạo bản lưu khi nội dung thực sự thay đổi (để dự phòng)
+  IF OLD.content_json IS DISTINCT FROM NEW.content_json THEN
+    INSERT INTO chapter_versions (chapter_id, content_json, name, status, edited_by)
+    VALUES (OLD.id, OLD.content_json, 'Backup (' || to_char(now(), 'HH24:mi DD/MM') || ')', 'draft', auth.uid());
+  END IF;
   
-  -- Keep only 10 most recent versions
-  DELETE FROM chapter_versions
-  WHERE id IN (
-    SELECT id FROM (
-      SELECT id, ROW_NUMBER() OVER (PARTITION BY chapter_id ORDER BY created_at DESC) as rn
-      FROM chapter_versions
-      WHERE chapter_id = OLD.id
-    ) t
-    WHERE t.rn > 10
-  );
   RETURN NEW;
 END;
 $$;
@@ -887,3 +880,27 @@ BEFORE INSERT ON public.chapter_versions
 FOR EACH ROW
 WHEN (NEW.is_primary = true)
 EXECUTE FUNCTION public.handle_primary_version_exclusivity();
+
+-- 
+-- Function to limit snapshots history per track
+-- 
+CREATE OR REPLACE FUNCTION public.limit_version_history() 
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM public.chapter_version_history
+    WHERE id IN (
+        SELECT id FROM (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY version_id ORDER BY created_at DESC) as rn
+            FROM public.chapter_version_history
+            WHERE version_id = NEW.version_id
+        ) t
+        WHERE t.rn > 30 -- Giữ lại 30 điểm khôi phục gần nhất cho mỗi luồng
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_limit_version_history
+AFTER INSERT ON public.chapter_version_history
+FOR EACH ROW
+EXECUTE FUNCTION public.limit_version_history();
