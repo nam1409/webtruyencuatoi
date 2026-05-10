@@ -322,7 +322,7 @@ function SortableSection({
                       <option value="shoutbox">Trò chuyện (Shoutbox)</option>
                       <option value="stats">Thống kê (Stats)</option>
                       <option value="custom">Nội dung tùy chỉnh</option>
-                      <option value="hero" disabled>Hero (Mặc định)</option>
+                      <option value="hero">Hero (Mặc định)</option>
                     </select>
                     {activeTab === "design" && <span className="text-[10px] font-black uppercase bg-purple-100 text-purple-600 px-3 py-1 rounded-full">Thiết kế nâng cao</span>}
                   </div>
