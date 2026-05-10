@@ -51,20 +51,37 @@ def simplify_supabase_sql(input_path, output_path):
             b = re.sub(r'ALTER.*?OWNER TO.*?;', '', b, flags=re.IGNORECASE)
             b = re.sub(r'GRANT ALL ON.*?TO.*?;', '', b, flags=re.IGNORECASE)
             
-            # Make CREATE TABLE idempotent
-            if type == 'table':
+            # Make CREATE TABLE idempotent (only if not already IF NOT EXISTS)
+            if type == 'table' and 'IF NOT EXISTS' not in b.upper():
                 b = re.sub(r'CREATE TABLE (["\w\.]*)', r'CREATE TABLE IF NOT EXISTS \1', b, flags=re.IGNORECASE)
             
-            # Make CREATE EXTENSION idempotent
-            if type == 'extension':
+            # Make CREATE EXTENSION idempotent (only if not already IF NOT EXISTS)
+            if type == 'extension' and 'IF NOT EXISTS' not in b.upper():
                 b = re.sub(r'CREATE EXTENSION (["\w\.]*)', r'CREATE EXTENSION IF NOT EXISTS \1', b, flags=re.IGNORECASE)
                 
             # Make POLICY idempotent (DROP then CREATE)
             if type == 'policy':
-                match = re.search(r'CREATE POLICY "(.*?)" ON (.*?)\s', b, re.IGNORECASE | re.DOTALL)
+                # Improved regex: 
+                # 1. Match "name" (quoted) OR name (unquoted)
+                # 2. Match ON
+                # 3. Match table
+                match = re.search(r'CREATE\s+POLICY\s+(?:"(.*?)"|(\S+))\s+ON\s+(.*?)(?:\s+FOR|\s+TO|\s+USING|\s+WITH|\s+AS|;|\n)', b, re.IGNORECASE | re.DOTALL)
                 if match:
-                    name, table = match.groups()
-                    b = f"DROP POLICY IF EXISTS \"{name}\" ON {table};\n{b}"
+                    quoted_name, unquoted_name, table = match.groups()
+                    name = (quoted_name or unquoted_name).strip()
+                    table = table.strip().replace('"."', '.').strip('"')
+                    
+                    # Handle both "schema"."table" and "table"
+                    parts = table.split('.')
+                    if len(parts) > 1:
+                        schema_part, table_part = parts[0], parts[1]
+                    else:
+                        schema_part, table_part = 'public', parts[0]
+                        
+                    b = f"DROP POLICY IF EXISTS \"{name}\" ON \"{schema_part}\".\"{table_part}\";\n{b}"
+                    
+                # Clean up if duplicate ON was added by previous failed regex
+                b = b.replace(' ON "public"."public"', ' ON "public"') # Safety cleanup
 
             cleaned.append(b.strip())
         return [c for c in cleaned if c]

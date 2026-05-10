@@ -4,11 +4,11 @@
 
 
 -- [1] EXTENSIONS
-CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
-CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "pg_trgm" WITH SCHEMA "public";
-CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
-CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
-CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm" WITH SCHEMA "public";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
 -- [2] FUNCTIONS
 CREATE OR REPLACE FUNCTION "public"."create_notification"("p_user_id" "uuid", "p_type" "text", "p_title" "text", "p_content" "text", "p_link" "text" DEFAULT NULL::"text") RETURNS "uuid"
@@ -193,7 +193,7 @@ END;
 $$;
 
 -- [3] TABLES & COLUMNS
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."activity_logs" (
+CREATE TABLE IF NOT EXISTS "public"."activity_logs" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid",
     "action" "text" NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."activity_logs" (
     "metadata" "jsonb" DEFAULT '{}'::"jsonb",
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapter_version_history" (
+CREATE TABLE IF NOT EXISTS "public"."chapter_version_history" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "version_id" "uuid" NOT NULL,
     "content_json" "jsonb" NOT NULL,
@@ -211,7 +211,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapter_version_history" (
     "created_by" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapter_versions" (
+CREATE TABLE IF NOT EXISTS "public"."chapter_versions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "created_by" "uuid",
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapter_versions" (
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "edited_by" "uuid"
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapters" (
+CREATE TABLE IF NOT EXISTS "public"."chapters" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "volume_id" "uuid",
@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapters" (
     "content_status" "text" DEFAULT 'published'::"text",
     CONSTRAINT "chapters_status_check" CHECK (("status" = ANY (ARRAY['draft'::"text", 'published'::"text", 'scheduled'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."characters" (
+CREATE TABLE IF NOT EXISTS "public"."characters" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "name" "text" NOT NULL,
@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."characters" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."comments" (
+CREATE TABLE IF NOT EXISTS "public"."comments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "user_id" "uuid" NOT NULL,
@@ -267,7 +267,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."comments" (
     "is_approved" boolean DEFAULT true,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."news" (
+CREATE TABLE IF NOT EXISTS "public"."news" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "title" "text" NOT NULL,
     "content" "text" NOT NULL,
@@ -277,7 +277,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."news" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."notifications" (
+CREATE TABLE IF NOT EXISTS "public"."notifications" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "type" "text" NOT NULL,
@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."notifications" (
     "is_read" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."profiles" (
+CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
     "username" "text" NOT NULL,
     "display_name" "text",
@@ -302,7 +302,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."profiles" (
     "location" "text",
     CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'reader'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."ratings" (
+CREATE TABLE IF NOT EXISTS "public"."ratings" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
@@ -311,20 +311,20 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."ratings" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     CONSTRAINT "ratings_rating_check" CHECK ((("rating" >= 1) AND ("rating" <= 5)))
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."reading_progress" (
+CREATE TABLE IF NOT EXISTS "public"."reading_progress" (
     "user_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."shoutbox" (
+CREATE TABLE IF NOT EXISTS "public"."shoutbox" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid",
     "content" "text" NOT NULL,
     "is_pinned" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."site_settings" (
+CREATE TABLE IF NOT EXISTS "public"."site_settings" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "site_name" "text" DEFAULT 'ZenStory'::"text",
     "site_description" "text" DEFAULT 'Nền tảng sáng tác và đọc truyện Light Novel cao cấp'::"text",
@@ -356,7 +356,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."site_settings" (
     "logo_url" "text",
     "enable_shoutbox" boolean DEFAULT true
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."stories" (
+CREATE TABLE IF NOT EXISTS "public"."stories" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "author_id" "uuid" NOT NULL,
     "title" "text" NOT NULL,
@@ -381,13 +381,13 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."stories" (
     "allow_offline" boolean DEFAULT false,
     CONSTRAINT "stories_status_check" CHECK (("status" = ANY (ARRAY['ongoing'::"text", 'completed'::"text", 'hiatus'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_access_list" (
+CREATE TABLE IF NOT EXISTS "public"."story_access_list" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "user_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_collaborators" (
+CREATE TABLE IF NOT EXISTS "public"."story_collaborators" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "user_id" "uuid" NOT NULL,
@@ -395,25 +395,25 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_collaborators" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     CONSTRAINT "story_collaborators_role_check" CHECK (("role" = ANY (ARRAY['editor'::"text", 'moderator'::"text", 'admin'::"text", 'translator'::"text", 'proofreader'::"text", 'uploader'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_follows" (
+CREATE TABLE IF NOT EXISTS "public"."story_follows" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_views_daily" (
+CREATE TABLE IF NOT EXISTS "public"."story_views_daily" (
     "story_id" "uuid" NOT NULL,
     "view_date" "date" DEFAULT CURRENT_DATE NOT NULL,
     "view_count" integer DEFAULT 1
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."user_reading_progress" (
+CREATE TABLE IF NOT EXISTS "public"."user_reading_progress" (
     "user_id" "uuid" NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
     "scroll_position" integer DEFAULT 0,
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."volumes" (
+CREATE TABLE IF NOT EXISTS "public"."volumes" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "title" "text" NOT NULL,
@@ -1051,30 +1051,35 @@ CREATE POLICY "Users can view versions of their stories" ON "public"."chapter_ve
           WHERE (("sc"."story_id" = "s"."id") AND ("sc"."user_id" = "auth"."uid"())))))))));
 DROP POLICY IF EXISTS "Volumes are viewable by everyone" ON "public"."volumes";
 CREATE POLICY "Volumes are viewable by everyone" ON "public"."volumes" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Assets Admin Manage" ON "storage"."objects";
 create policy "Assets Admin Manage"
   on "storage"."objects"
   as permissive
   for all
   to authenticated
 using ((bucket_id = 'assets'::text));
+DROP POLICY IF EXISTS "Assets Public Access" ON "storage"."objects";
 create policy "Assets Public Access"
   on "storage"."objects"
   as permissive
   for select
   to public
 using ((bucket_id = 'assets'::text));
+DROP POLICY IF EXISTS "Authenticated users can upload" ON "storage"."objects";
 create policy "Authenticated users can upload"
   on "storage"."objects"
   as permissive
   for insert
   to public
 with check ((auth.role() = 'authenticated'::text));
+DROP POLICY IF EXISTS "Public Access" ON "storage"."objects";
 create policy "Public Access"
   on "storage"."objects"
   as permissive
   for select
   to public
 using ((bucket_id = ANY (ARRAY['covers'::text, 'illustrations'::text])));
+DROP POLICY IF EXISTS "Users can delete own uploads" ON "storage"."objects";
 create policy "Users can delete own uploads"
   on "storage"."objects"
   as permissive
@@ -1254,30 +1259,35 @@ CREATE POLICY "Users can view versions of their stories" ON "public"."chapter_ve
           WHERE (("sc"."story_id" = "s"."id") AND ("sc"."user_id" = "auth"."uid"())))))))));
 DROP POLICY IF EXISTS "Volumes are viewable by everyone" ON "public"."volumes";
 CREATE POLICY "Volumes are viewable by everyone" ON "public"."volumes" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Assets Admin Manage" ON "storage"."objects";
 create policy "Assets Admin Manage"
   on "storage"."objects"
   as permissive
   for all
   to authenticated
 using ((bucket_id = 'assets'::text));
+DROP POLICY IF EXISTS "Assets Public Access" ON "storage"."objects";
 create policy "Assets Public Access"
   on "storage"."objects"
   as permissive
   for select
   to public
 using ((bucket_id = 'assets'::text));
+DROP POLICY IF EXISTS "Authenticated users can upload" ON "storage"."objects";
 create policy "Authenticated users can upload"
   on "storage"."objects"
   as permissive
   for insert
   to public
 with check ((auth.role() = 'authenticated'::text));
+DROP POLICY IF EXISTS "Public Access" ON "storage"."objects";
 create policy "Public Access"
   on "storage"."objects"
   as permissive
   for select
   to public
 using ((bucket_id = ANY (ARRAY['covers'::text, 'illustrations'::text])));
+DROP POLICY IF EXISTS "Users can delete own uploads" ON "storage"."objects";
 create policy "Users can delete own uploads"
   on "storage"."objects"
   as permissive
