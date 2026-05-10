@@ -4,11 +4,11 @@
 
 
 -- [1] EXTENSIONS
-CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm" WITH SCHEMA "public";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
-CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "pg_trgm" WITH SCHEMA "public";
+CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+CREATE EXTENSION IF NOT EXISTS IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
 -- [2] FUNCTIONS
 CREATE OR REPLACE FUNCTION "public"."create_notification"("p_user_id" "uuid", "p_type" "text", "p_title" "text", "p_content" "text", "p_link" "text" DEFAULT NULL::"text") RETURNS "uuid"
@@ -193,7 +193,7 @@ END;
 $$;
 
 -- [3] TABLES & COLUMNS
-CREATE TABLE IF NOT EXISTS "public"."activity_logs" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."activity_logs" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid",
     "action" "text" NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS "public"."activity_logs" (
     "metadata" "jsonb" DEFAULT '{}'::"jsonb",
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."chapter_version_history" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapter_version_history" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "version_id" "uuid" NOT NULL,
     "content_json" "jsonb" NOT NULL,
@@ -211,7 +211,7 @@ CREATE TABLE IF NOT EXISTS "public"."chapter_version_history" (
     "created_by" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."chapter_versions" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapter_versions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "created_by" "uuid",
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS "public"."chapter_versions" (
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "edited_by" "uuid"
 );
-CREATE TABLE IF NOT EXISTS "public"."chapters" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."chapters" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "volume_id" "uuid",
@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS "public"."chapters" (
     "content_status" "text" DEFAULT 'published'::"text",
     CONSTRAINT "chapters_status_check" CHECK (("status" = ANY (ARRAY['draft'::"text", 'published'::"text", 'scheduled'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS "public"."characters" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."characters" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "name" "text" NOT NULL,
@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS "public"."characters" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."comments" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."comments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "user_id" "uuid" NOT NULL,
@@ -267,7 +267,7 @@ CREATE TABLE IF NOT EXISTS "public"."comments" (
     "is_approved" boolean DEFAULT true,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."news" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."news" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "title" "text" NOT NULL,
     "content" "text" NOT NULL,
@@ -277,7 +277,7 @@ CREATE TABLE IF NOT EXISTS "public"."news" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."notifications" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."notifications" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "type" "text" NOT NULL,
@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS "public"."notifications" (
     "is_read" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."profiles" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
     "username" "text" NOT NULL,
     "display_name" "text",
@@ -302,7 +302,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "location" "text",
     CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'reader'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS "public"."ratings" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."ratings" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
@@ -311,20 +311,20 @@ CREATE TABLE IF NOT EXISTS "public"."ratings" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     CONSTRAINT "ratings_rating_check" CHECK ((("rating" >= 1) AND ("rating" <= 5)))
 );
-CREATE TABLE IF NOT EXISTS "public"."reading_progress" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."reading_progress" (
     "user_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."shoutbox" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."shoutbox" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid",
     "content" "text" NOT NULL,
     "is_pinned" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."site_settings" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."site_settings" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "site_name" "text" DEFAULT 'ZenStory'::"text",
     "site_description" "text" DEFAULT 'Nền tảng sáng tác và đọc truyện Light Novel cao cấp'::"text",
@@ -356,7 +356,7 @@ CREATE TABLE IF NOT EXISTS "public"."site_settings" (
     "logo_url" "text",
     "enable_shoutbox" boolean DEFAULT true
 );
-CREATE TABLE IF NOT EXISTS "public"."stories" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."stories" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "author_id" "uuid" NOT NULL,
     "title" "text" NOT NULL,
@@ -381,13 +381,13 @@ CREATE TABLE IF NOT EXISTS "public"."stories" (
     "allow_offline" boolean DEFAULT false,
     CONSTRAINT "stories_status_check" CHECK (("status" = ANY (ARRAY['ongoing'::"text", 'completed'::"text", 'hiatus'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS "public"."story_access_list" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_access_list" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "user_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."story_collaborators" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_collaborators" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "user_id" "uuid" NOT NULL,
@@ -395,25 +395,25 @@ CREATE TABLE IF NOT EXISTS "public"."story_collaborators" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     CONSTRAINT "story_collaborators_role_check" CHECK (("role" = ANY (ARRAY['editor'::"text", 'moderator'::"text", 'admin'::"text", 'translator'::"text", 'proofreader'::"text", 'uploader'::"text"])))
 );
-CREATE TABLE IF NOT EXISTS "public"."story_follows" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_follows" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."story_views_daily" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."story_views_daily" (
     "story_id" "uuid" NOT NULL,
     "view_date" "date" DEFAULT CURRENT_DATE NOT NULL,
     "view_count" integer DEFAULT 1
 );
-CREATE TABLE IF NOT EXISTS "public"."user_reading_progress" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."user_reading_progress" (
     "user_id" "uuid" NOT NULL,
     "chapter_id" "uuid" NOT NULL,
     "story_id" "uuid" NOT NULL,
     "scroll_position" integer DEFAULT 0,
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
-CREATE TABLE IF NOT EXISTS "public"."volumes" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "public"."volumes" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "story_id" "uuid" NOT NULL,
     "title" "text" NOT NULL,
@@ -878,65 +878,93 @@ CREATE OR REPLACE TRIGGER "version_snapshot_trigger" AFTER UPDATE OF "content_dr
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- [7] POLICIES (RLS)
+DROP POLICY IF EXISTS "Admin có toàn quyền quản lý" ON "public"."shoutbox";
 CREATE POLICY "Admin có toàn quyền quản lý" ON "public"."shoutbox" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+DROP POLICY IF EXISTS "Admins can manage news" ON "public"."news";
 CREATE POLICY "Admins can manage news" ON "public"."news" USING (("auth"."uid"() IN ( SELECT "profiles"."id"
    FROM "public"."profiles"
   WHERE ("profiles"."role" = 'admin'::"text"))));
+DROP POLICY IF EXISTS "Admins can update settings" ON "public"."site_settings";
 CREATE POLICY "Admins can update settings" ON "public"."site_settings" USING (("auth"."role"() = 'authenticated'::"text"));
+DROP POLICY IF EXISTS "Ai cũng có thể xem tin nhắn" ON "public"."shoutbox";
 CREATE POLICY "Ai cũng có thể xem tin nhắn" ON "public"."shoutbox" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public insert/update for views via RPC" ON "public"."story_views_daily";
 CREATE POLICY "Allow public insert/update for views via RPC" ON "public"."story_views_daily" USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow public select on published versions" ON "public"."chapter_versions";
 CREATE POLICY "Allow public select on published versions" ON "public"."chapter_versions" FOR SELECT USING (("status" = 'published'::"text"));
+DROP POLICY IF EXISTS "Anyone can view collaborators" ON "public"."story_collaborators";
 CREATE POLICY "Anyone can view collaborators" ON "public"."story_collaborators" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can view news" ON "public"."news";
 CREATE POLICY "Anyone can view news" ON "public"."news" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can post comments" ON "public"."comments";
 CREATE POLICY "Authenticated users can post comments" ON "public"."comments" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Authors and collaborators can manage chapters" ON "public"."chapters";
 CREATE POLICY "Authors and collaborators can manage chapters" ON "public"."chapters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))))))));
+DROP POLICY IF EXISTS "Authors and collaborators can manage characters" ON "public"."characters";
 CREATE POLICY "Authors and collaborators can manage characters" ON "public"."characters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "characters"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))))))));
+DROP POLICY IF EXISTS "Authors and collaborators can manage volumes" ON "public"."volumes";
 CREATE POLICY "Authors and collaborators can manage volumes" ON "public"."volumes" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "volumes"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))))))));
+DROP POLICY IF EXISTS "Authors and collaborators manage stories" ON "public"."stories";
 CREATE POLICY "Authors and collaborators manage stories" ON "public"."stories" TO "authenticated" USING ((("author_id" = "auth"."uid"()) OR "public"."is_story_collaborator"("id")));
+DROP POLICY IF EXISTS "Authors can manage chapters" ON "public"."chapters";
 CREATE POLICY "Authors can manage chapters" ON "public"."chapters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Authors can manage characters" ON "public"."characters";
 CREATE POLICY "Authors can manage characters" ON "public"."characters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "characters"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Authors can manage own stories" ON "public"."stories";
 CREATE POLICY "Authors can manage own stories" ON "public"."stories" USING (("auth"."uid"() = "author_id"));
+DROP POLICY IF EXISTS "Authors can manage stories" ON "public"."stories";
 CREATE POLICY "Authors can manage stories" ON "public"."stories" USING (("auth"."uid"() = "author_id"));
+DROP POLICY IF EXISTS "Authors can manage volumes" ON "public"."volumes";
 CREATE POLICY "Authors can manage volumes" ON "public"."volumes" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "volumes"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Authors manage collaborators" ON "public"."story_collaborators";
 CREATE POLICY "Authors manage collaborators" ON "public"."story_collaborators" TO "authenticated" USING ("public"."is_story_owner"("story_id")) WITH CHECK ("public"."is_story_owner"("story_id"));
+DROP POLICY IF EXISTS "Authors manage own chapters" ON "public"."chapters";
 CREATE POLICY "Authors manage own chapters" ON "public"."chapters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Characters are viewable by everyone" ON "public"."characters";
 CREATE POLICY "Characters are viewable by everyone" ON "public"."characters" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Collaborators manage chapters" ON "public"."chapters";
 CREATE POLICY "Collaborators manage chapters" ON "public"."chapters" TO "authenticated" USING (("public"."is_story_owner"("story_id") OR "public"."is_story_collaborator"("story_id")));
+DROP POLICY IF EXISTS "Collaborators manage volumes" ON "public"."volumes";
 CREATE POLICY "Collaborators manage volumes" ON "public"."volumes" USING ((EXISTS ( SELECT 1
    FROM "public"."story_collaborators"
   WHERE (("story_collaborators"."story_id" = "volumes"."story_id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))));
+DROP POLICY IF EXISTS "Collaborators update stories" ON "public"."stories";
 CREATE POLICY "Collaborators update stories" ON "public"."stories" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."story_collaborators"
   WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text", 'translator'::"text"]))))));
+DROP POLICY IF EXISTS "Collaborators view stories" ON "public"."stories";
 CREATE POLICY "Collaborators view stories" ON "public"."stories" FOR SELECT TO "authenticated" USING ("public"."is_story_collaborator"("id"));
+DROP POLICY IF EXISTS "Comments are viewable by everyone" ON "public"."comments";
 CREATE POLICY "Comments are viewable by everyone" ON "public"."comments" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Manage access list" ON "public"."story_access_list";
 CREATE POLICY "Manage access list" ON "public"."story_access_list" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "story_access_list"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"())))))))));
+DROP POLICY IF EXISTS "Manage history" ON "public"."chapter_version_history";
 CREATE POLICY "Manage history" ON "public"."chapter_version_history" USING ((EXISTS ( SELECT 1
    FROM (("public"."chapter_versions" "v"
      JOIN "public"."chapters" "c" ON (("v"."chapter_id" = "c"."id")))
@@ -944,27 +972,38 @@ CREATE POLICY "Manage history" ON "public"."chapter_version_history" USING ((EXI
   WHERE (("v"."id" = "chapter_version_history"."version_id") AND (("s"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."profiles" "p"
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))))))));
+DROP POLICY IF EXISTS "Manage versions" ON "public"."chapter_versions";
 CREATE POLICY "Manage versions" ON "public"."chapter_versions" USING ((EXISTS ( SELECT 1
    FROM ("public"."chapters" "c"
      JOIN "public"."stories" "s" ON (("c"."story_id" = "s"."id")))
   WHERE (("c"."id" = "chapter_versions"."chapter_id") AND (("s"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."profiles" "p"
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))))))));
+DROP POLICY IF EXISTS "Người dùng đã đăng nhập mới được nhắn tin" ON "public"."shoutbox";
 CREATE POLICY "Người dùng đã đăng nhập mới được nhắn tin" ON "public"."shoutbox" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Only admins can manage settings" ON "public"."site_settings";
 CREATE POLICY "Only admins can manage settings" ON "public"."site_settings" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON "public"."profiles";
 CREATE POLICY "Profiles are viewable by everyone" ON "public"."profiles" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can view settings" ON "public"."site_settings";
 CREATE POLICY "Public can view settings" ON "public"."site_settings" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON "public"."profiles";
 CREATE POLICY "Public profiles are viewable by everyone" ON "public"."profiles" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Published chapters are public" ON "public"."chapters";
 CREATE POLICY "Published chapters are public" ON "public"."chapters" FOR SELECT USING (("status" = 'published'::"text"));
+DROP POLICY IF EXISTS "Published chapters viewable by everyone" ON "public"."chapters";
 CREATE POLICY "Published chapters viewable by everyone" ON "public"."chapters" FOR SELECT USING ((("status" = 'published'::"text") OR (EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND ("stories"."author_id" = "auth"."uid"()))))));
+DROP POLICY IF EXISTS "Settings are viewable by everyone" ON "public"."site_settings";
 CREATE POLICY "Settings are viewable by everyone" ON "public"."site_settings" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Stories are viewable by everyone" ON "public"."stories";
 CREATE POLICY "Stories are viewable by everyone" ON "public"."stories" FOR SELECT USING ((("is_private" = false) OR ("auth"."uid"() = "author_id") OR (EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))));
+DROP POLICY IF EXISTS "Users can create versions of their stories" ON "public"."chapter_versions";
 CREATE POLICY "Users can create versions of their stories" ON "public"."chapter_versions" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM ("public"."chapters" "c"
      JOIN "public"."stories" "s" ON (("c"."story_id" = "s"."id")))
@@ -973,20 +1012,35 @@ CREATE POLICY "Users can create versions of their stories" ON "public"."chapter_
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators" "sc"
           WHERE (("sc"."story_id" = "s"."id") AND ("sc"."user_id" = "auth"."uid"())))))))));
+DROP POLICY IF EXISTS "Users can delete own comments" ON "public"."comments";
 CREATE POLICY "Users can delete own comments" ON "public"."comments" FOR DELETE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can delete their own notifications" ON "public"."notifications";
 CREATE POLICY "Users can delete their own notifications" ON "public"."notifications" FOR DELETE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can follow stories" ON "public"."story_follows";
 CREATE POLICY "Users can follow stories" ON "public"."story_follows" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can insert their own activity logs" ON "public"."activity_logs";
 CREATE POLICY "Users can insert their own activity logs" ON "public"."activity_logs" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can insert their own profile" ON "public"."profiles";
 CREATE POLICY "Users can insert their own profile" ON "public"."profiles" FOR INSERT WITH CHECK (("auth"."uid"() = "id"));
+DROP POLICY IF EXISTS "Users can manage own progress" ON "public"."reading_progress";
 CREATE POLICY "Users can manage own progress" ON "public"."reading_progress" USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can manage own ratings" ON "public"."ratings";
 CREATE POLICY "Users can manage own ratings" ON "public"."ratings" USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can manage own reading progress" ON "public"."user_reading_progress";
 CREATE POLICY "Users can manage own reading progress" ON "public"."user_reading_progress" USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can unfollow stories" ON "public"."story_follows";
 CREATE POLICY "Users can unfollow stories" ON "public"."story_follows" FOR DELETE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can update own profile" ON "public"."profiles";
 CREATE POLICY "Users can update own profile" ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
+DROP POLICY IF EXISTS "Users can update their own notifications" ON "public"."notifications";
 CREATE POLICY "Users can update their own notifications" ON "public"."notifications" FOR UPDATE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view their own activity logs" ON "public"."activity_logs";
 CREATE POLICY "Users can view their own activity logs" ON "public"."activity_logs" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view their own follows" ON "public"."story_follows";
 CREATE POLICY "Users can view their own follows" ON "public"."story_follows" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view their own notifications" ON "public"."notifications";
 CREATE POLICY "Users can view their own notifications" ON "public"."notifications" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view versions of their stories" ON "public"."chapter_versions";
 CREATE POLICY "Users can view versions of their stories" ON "public"."chapter_versions" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM ("public"."chapters" "c"
      JOIN "public"."stories" "s" ON (("c"."story_id" = "s"."id")))
@@ -995,6 +1049,7 @@ CREATE POLICY "Users can view versions of their stories" ON "public"."chapter_ve
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators" "sc"
           WHERE (("sc"."story_id" = "s"."id") AND ("sc"."user_id" = "auth"."uid"())))))))));
+DROP POLICY IF EXISTS "Volumes are viewable by everyone" ON "public"."volumes";
 CREATE POLICY "Volumes are viewable by everyone" ON "public"."volumes" FOR SELECT USING (true);
 create policy "Assets Admin Manage"
   on "storage"."objects"
@@ -1026,65 +1081,93 @@ create policy "Users can delete own uploads"
   for delete
   to public
 using ((auth.uid() = owner));
+DROP POLICY IF EXISTS "Admin có toàn quyền quản lý" ON "public"."shoutbox";
 CREATE POLICY "Admin có toàn quyền quản lý" ON "public"."shoutbox" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+DROP POLICY IF EXISTS "Admins can manage news" ON "public"."news";
 CREATE POLICY "Admins can manage news" ON "public"."news" USING (("auth"."uid"() IN ( SELECT "profiles"."id"
    FROM "public"."profiles"
   WHERE ("profiles"."role" = 'admin'::"text"))));
+DROP POLICY IF EXISTS "Admins can update settings" ON "public"."site_settings";
 CREATE POLICY "Admins can update settings" ON "public"."site_settings" USING (("auth"."role"() = 'authenticated'::"text"));
+DROP POLICY IF EXISTS "Ai cũng có thể xem tin nhắn" ON "public"."shoutbox";
 CREATE POLICY "Ai cũng có thể xem tin nhắn" ON "public"."shoutbox" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public insert/update for views via RPC" ON "public"."story_views_daily";
 CREATE POLICY "Allow public insert/update for views via RPC" ON "public"."story_views_daily" USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow public select on published versions" ON "public"."chapter_versions";
 CREATE POLICY "Allow public select on published versions" ON "public"."chapter_versions" FOR SELECT USING (("status" = 'published'::"text"));
+DROP POLICY IF EXISTS "Anyone can view collaborators" ON "public"."story_collaborators";
 CREATE POLICY "Anyone can view collaborators" ON "public"."story_collaborators" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can view news" ON "public"."news";
 CREATE POLICY "Anyone can view news" ON "public"."news" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can post comments" ON "public"."comments";
 CREATE POLICY "Authenticated users can post comments" ON "public"."comments" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Authors and collaborators can manage chapters" ON "public"."chapters";
 CREATE POLICY "Authors and collaborators can manage chapters" ON "public"."chapters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))))))));
+DROP POLICY IF EXISTS "Authors and collaborators can manage characters" ON "public"."characters";
 CREATE POLICY "Authors and collaborators can manage characters" ON "public"."characters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "characters"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))))))));
+DROP POLICY IF EXISTS "Authors and collaborators can manage volumes" ON "public"."volumes";
 CREATE POLICY "Authors and collaborators can manage volumes" ON "public"."volumes" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "volumes"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))))))));
+DROP POLICY IF EXISTS "Authors and collaborators manage stories" ON "public"."stories";
 CREATE POLICY "Authors and collaborators manage stories" ON "public"."stories" TO "authenticated" USING ((("author_id" = "auth"."uid"()) OR "public"."is_story_collaborator"("id")));
+DROP POLICY IF EXISTS "Authors can manage chapters" ON "public"."chapters";
 CREATE POLICY "Authors can manage chapters" ON "public"."chapters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Authors can manage characters" ON "public"."characters";
 CREATE POLICY "Authors can manage characters" ON "public"."characters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "characters"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Authors can manage own stories" ON "public"."stories";
 CREATE POLICY "Authors can manage own stories" ON "public"."stories" USING (("auth"."uid"() = "author_id"));
+DROP POLICY IF EXISTS "Authors can manage stories" ON "public"."stories";
 CREATE POLICY "Authors can manage stories" ON "public"."stories" USING (("auth"."uid"() = "author_id"));
+DROP POLICY IF EXISTS "Authors can manage volumes" ON "public"."volumes";
 CREATE POLICY "Authors can manage volumes" ON "public"."volumes" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "volumes"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Authors manage collaborators" ON "public"."story_collaborators";
 CREATE POLICY "Authors manage collaborators" ON "public"."story_collaborators" TO "authenticated" USING ("public"."is_story_owner"("story_id")) WITH CHECK ("public"."is_story_owner"("story_id"));
+DROP POLICY IF EXISTS "Authors manage own chapters" ON "public"."chapters";
 CREATE POLICY "Authors manage own chapters" ON "public"."chapters" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND ("stories"."author_id" = "auth"."uid"())))));
+DROP POLICY IF EXISTS "Characters are viewable by everyone" ON "public"."characters";
 CREATE POLICY "Characters are viewable by everyone" ON "public"."characters" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Collaborators manage chapters" ON "public"."chapters";
 CREATE POLICY "Collaborators manage chapters" ON "public"."chapters" TO "authenticated" USING (("public"."is_story_owner"("story_id") OR "public"."is_story_collaborator"("story_id")));
+DROP POLICY IF EXISTS "Collaborators manage volumes" ON "public"."volumes";
 CREATE POLICY "Collaborators manage volumes" ON "public"."volumes" USING ((EXISTS ( SELECT 1
    FROM "public"."story_collaborators"
   WHERE (("story_collaborators"."story_id" = "volumes"."story_id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text"]))))));
+DROP POLICY IF EXISTS "Collaborators update stories" ON "public"."stories";
 CREATE POLICY "Collaborators update stories" ON "public"."stories" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."story_collaborators"
   WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"()) AND ("story_collaborators"."role" = ANY (ARRAY['admin'::"text", 'editor'::"text", 'translator'::"text"]))))));
+DROP POLICY IF EXISTS "Collaborators view stories" ON "public"."stories";
 CREATE POLICY "Collaborators view stories" ON "public"."stories" FOR SELECT TO "authenticated" USING ("public"."is_story_collaborator"("id"));
+DROP POLICY IF EXISTS "Comments are viewable by everyone" ON "public"."comments";
 CREATE POLICY "Comments are viewable by everyone" ON "public"."comments" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Manage access list" ON "public"."story_access_list";
 CREATE POLICY "Manage access list" ON "public"."story_access_list" USING ((EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "story_access_list"."story_id") AND (("stories"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators"
           WHERE (("story_collaborators"."story_id" = "stories"."id") AND ("story_collaborators"."user_id" = "auth"."uid"())))))))));
+DROP POLICY IF EXISTS "Manage history" ON "public"."chapter_version_history";
 CREATE POLICY "Manage history" ON "public"."chapter_version_history" USING ((EXISTS ( SELECT 1
    FROM (("public"."chapter_versions" "v"
      JOIN "public"."chapters" "c" ON (("v"."chapter_id" = "c"."id")))
@@ -1092,27 +1175,38 @@ CREATE POLICY "Manage history" ON "public"."chapter_version_history" USING ((EXI
   WHERE (("v"."id" = "chapter_version_history"."version_id") AND (("s"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."profiles" "p"
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))))))));
+DROP POLICY IF EXISTS "Manage versions" ON "public"."chapter_versions";
 CREATE POLICY "Manage versions" ON "public"."chapter_versions" USING ((EXISTS ( SELECT 1
    FROM ("public"."chapters" "c"
      JOIN "public"."stories" "s" ON (("c"."story_id" = "s"."id")))
   WHERE (("c"."id" = "chapter_versions"."chapter_id") AND (("s"."author_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
            FROM "public"."profiles" "p"
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))))))));
+DROP POLICY IF EXISTS "Người dùng đã đăng nhập mới được nhắn tin" ON "public"."shoutbox";
 CREATE POLICY "Người dùng đã đăng nhập mới được nhắn tin" ON "public"."shoutbox" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Only admins can manage settings" ON "public"."site_settings";
 CREATE POLICY "Only admins can manage settings" ON "public"."site_settings" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON "public"."profiles";
 CREATE POLICY "Profiles are viewable by everyone" ON "public"."profiles" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can view settings" ON "public"."site_settings";
 CREATE POLICY "Public can view settings" ON "public"."site_settings" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON "public"."profiles";
 CREATE POLICY "Public profiles are viewable by everyone" ON "public"."profiles" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Published chapters are public" ON "public"."chapters";
 CREATE POLICY "Published chapters are public" ON "public"."chapters" FOR SELECT USING (("status" = 'published'::"text"));
+DROP POLICY IF EXISTS "Published chapters viewable by everyone" ON "public"."chapters";
 CREATE POLICY "Published chapters viewable by everyone" ON "public"."chapters" FOR SELECT USING ((("status" = 'published'::"text") OR (EXISTS ( SELECT 1
    FROM "public"."stories"
   WHERE (("stories"."id" = "chapters"."story_id") AND ("stories"."author_id" = "auth"."uid"()))))));
+DROP POLICY IF EXISTS "Settings are viewable by everyone" ON "public"."site_settings";
 CREATE POLICY "Settings are viewable by everyone" ON "public"."site_settings" FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Stories are viewable by everyone" ON "public"."stories";
 CREATE POLICY "Stories are viewable by everyone" ON "public"."stories" FOR SELECT USING ((("is_private" = false) OR ("auth"."uid"() = "author_id") OR (EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))));
+DROP POLICY IF EXISTS "Users can create versions of their stories" ON "public"."chapter_versions";
 CREATE POLICY "Users can create versions of their stories" ON "public"."chapter_versions" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM ("public"."chapters" "c"
      JOIN "public"."stories" "s" ON (("c"."story_id" = "s"."id")))
@@ -1121,20 +1215,35 @@ CREATE POLICY "Users can create versions of their stories" ON "public"."chapter_
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators" "sc"
           WHERE (("sc"."story_id" = "s"."id") AND ("sc"."user_id" = "auth"."uid"())))))))));
+DROP POLICY IF EXISTS "Users can delete own comments" ON "public"."comments";
 CREATE POLICY "Users can delete own comments" ON "public"."comments" FOR DELETE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can delete their own notifications" ON "public"."notifications";
 CREATE POLICY "Users can delete their own notifications" ON "public"."notifications" FOR DELETE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can follow stories" ON "public"."story_follows";
 CREATE POLICY "Users can follow stories" ON "public"."story_follows" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can insert their own activity logs" ON "public"."activity_logs";
 CREATE POLICY "Users can insert their own activity logs" ON "public"."activity_logs" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can insert their own profile" ON "public"."profiles";
 CREATE POLICY "Users can insert their own profile" ON "public"."profiles" FOR INSERT WITH CHECK (("auth"."uid"() = "id"));
+DROP POLICY IF EXISTS "Users can manage own progress" ON "public"."reading_progress";
 CREATE POLICY "Users can manage own progress" ON "public"."reading_progress" USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can manage own ratings" ON "public"."ratings";
 CREATE POLICY "Users can manage own ratings" ON "public"."ratings" USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can manage own reading progress" ON "public"."user_reading_progress";
 CREATE POLICY "Users can manage own reading progress" ON "public"."user_reading_progress" USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can unfollow stories" ON "public"."story_follows";
 CREATE POLICY "Users can unfollow stories" ON "public"."story_follows" FOR DELETE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can update own profile" ON "public"."profiles";
 CREATE POLICY "Users can update own profile" ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
+DROP POLICY IF EXISTS "Users can update their own notifications" ON "public"."notifications";
 CREATE POLICY "Users can update their own notifications" ON "public"."notifications" FOR UPDATE USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view their own activity logs" ON "public"."activity_logs";
 CREATE POLICY "Users can view their own activity logs" ON "public"."activity_logs" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view their own follows" ON "public"."story_follows";
 CREATE POLICY "Users can view their own follows" ON "public"."story_follows" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view their own notifications" ON "public"."notifications";
 CREATE POLICY "Users can view their own notifications" ON "public"."notifications" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DROP POLICY IF EXISTS "Users can view versions of their stories" ON "public"."chapter_versions";
 CREATE POLICY "Users can view versions of their stories" ON "public"."chapter_versions" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM ("public"."chapters" "c"
      JOIN "public"."stories" "s" ON (("c"."story_id" = "s"."id")))
@@ -1143,6 +1252,7 @@ CREATE POLICY "Users can view versions of their stories" ON "public"."chapter_ve
           WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'admin'::"text")))) OR (EXISTS ( SELECT 1
            FROM "public"."story_collaborators" "sc"
           WHERE (("sc"."story_id" = "s"."id") AND ("sc"."user_id" = "auth"."uid"())))))))));
+DROP POLICY IF EXISTS "Volumes are viewable by everyone" ON "public"."volumes";
 CREATE POLICY "Volumes are viewable by everyone" ON "public"."volumes" FOR SELECT USING (true);
 create policy "Assets Admin Manage"
   on "storage"."objects"

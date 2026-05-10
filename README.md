@@ -63,6 +63,26 @@ Sau khi cài đặt thành công, hãy truy cập vào đường dẫn `/login` 
 
 Bây giờ bạn có thể truy cập `/admin` để thay đổi màu sắc, phông chữ, logo và bắt đầu đăng những chương truyện đầu tiên!
 
+---
+
+## 🔄 Hướng dẫn Cập nhật
+
+Khi ZenStory có phiên bản mới, hãy làm theo các bước sau để cập nhật website của bạn:
+
+### 1. Cập nhật Mã nguồn (Code)
+Nếu bạn đã dùng nút **Deploy to Vercel**:
+1. Truy cập vào kho mã nguồn (Repository) của bạn trên GitHub.
+2. Nhấn vào nút **Sync fork** -> **Update branch**.
+3. Vercel sẽ tự động phát hiện thay đổi và triển khai bản cập nhật sau vài phút.
+
+### 2. Cập nhật Cơ sở dữ liệu (Database)
+Nếu phiên bản mới có thay đổi về cấu trúc bảng hoặc tính năng (ví dụ: thêm Shoutbox, thêm Anti-copy):
+1. Truy cập vào **SQL Editor** trên Supabase.
+2. Bạn có thể mở file [init_database.sql](./init_database.sql) mới nhất, copy toàn bộ và chạy lại (**Run**). Các lệnh đã được thiết kế an toàn để không ghi đè dữ liệu cũ.
+3. Hoặc bạn có thể kiểm tra thư mục `supabase/migrations` và chỉ chạy những file SQL mới nhất dựa trên mốc thời gian.
+
+---
+
 ## 🤝 Đóng góp
 Nếu bạn gặp lỗi hoặc có ý tưởng mới, hãy mở một Issue hoặc Pull Request. Chúng tôi luôn chào đón sự đóng góp từ cộng đồng.
 

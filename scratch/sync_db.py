@@ -44,26 +44,41 @@ def simplify_supabase_sql(input_path, output_path):
     inserts = re.findall(r'INSERT INTO.*?;', content, re.IGNORECASE)
 
     # 2. Cleanup and assemble
-    def clean(blocks):
+    def clean(blocks, type=None):
         cleaned = []
         for b in blocks:
             # Remove OWNER TO and GRANT noise inside blocks
             b = re.sub(r'ALTER.*?OWNER TO.*?;', '', b, flags=re.IGNORECASE)
             b = re.sub(r'GRANT ALL ON.*?TO.*?;', '', b, flags=re.IGNORECASE)
-            # Remove leading/trailing whitespace
+            
+            # Make CREATE TABLE idempotent
+            if type == 'table':
+                b = re.sub(r'CREATE TABLE (["\w\.]*)', r'CREATE TABLE IF NOT EXISTS \1', b, flags=re.IGNORECASE)
+            
+            # Make CREATE EXTENSION idempotent
+            if type == 'extension':
+                b = re.sub(r'CREATE EXTENSION (["\w\.]*)', r'CREATE EXTENSION IF NOT EXISTS \1', b, flags=re.IGNORECASE)
+                
+            # Make POLICY idempotent (DROP then CREATE)
+            if type == 'policy':
+                match = re.search(r'CREATE POLICY "(.*?)" ON (.*?)\s', b, re.IGNORECASE | re.DOTALL)
+                if match:
+                    name, table = match.groups()
+                    b = f"DROP POLICY IF EXISTS \"{name}\" ON {table};\n{b}"
+
             cleaned.append(b.strip())
         return [c for c in cleaned if c]
 
     final_sql = "-- ZENSTORY ELITE - FULL DATABASE INITIALIZATION (AUTO-GENERATED FROM MIGRATION)\n"
     final_sql += "-- Phiên bản đầy đủ tính năng nhất để Self-host\n\n"
     
-    final_sql += "\n\n-- [1] EXTENSIONS\n" + "\n".join(clean(extensions))
+    final_sql += "\n\n-- [1] EXTENSIONS\n" + "\n".join(clean(extensions, 'extension'))
     final_sql += "\n\n-- [2] FUNCTIONS\n" + "\n".join(clean(functions))
-    final_sql += "\n\n-- [3] TABLES & COLUMNS\n" + "\n".join(clean(tables)) + "\n" + "\n".join(clean(column_adds))
+    final_sql += "\n\n-- [3] TABLES & COLUMNS\n" + "\n".join(clean(tables, 'table')) + "\n" + "\n".join(clean(column_adds))
     final_sql += "\n\n-- [4] CONSTRAINTS\n" + "\n".join(clean(constraints))
     final_sql += "\n\n-- [5] INDEXES\n" + "\n".join(clean(indexes))
     final_sql += "\n\n-- [6] TRIGGERS\n" + "\n".join(clean(triggers))
-    final_sql += "\n\n-- [7] POLICIES (RLS)\n" + "\n".join(clean(policies))
+    final_sql += "\n\n-- [7] POLICIES (RLS)\n" + "\n".join(clean(policies, 'policy'))
     
     # Custom additions for storage
     final_sql += """
