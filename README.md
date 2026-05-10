@@ -16,9 +16,12 @@ ZenStory Elite là giải pháp mã nguồn mở hoàn chỉnh giúp các tác g
 Dành cho các tác giả muốn sở hữu website ngay lập tức.
 
 ### Bước 1: Triển khai Website
-Nhấn vào nút dưới đây để sao chép mã nguồn và đưa lên máy chủ Vercel (Miễn phí):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/namnguyen1409/lightnovel&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,NEXT_PUBLIC_SITE_URL&project-name=my-zenstory&repository-name=my-zenstory)
+Để sau này có thể cập nhật phiên bản mới chỉ với 1 cú click, chúng tôi khuyên bạn nên **Fork** dự án này trước khi Deploy:
+
+1. Nhấn nút **Fork** ở góc trên bên phải trang GitHub này để copy dự án về tài khoản của bạn.
+2. Truy cập [Vercel.com](https://vercel.com/), chọn **Add New Project** và kết nối với Repository bạn vừa Fork.
+3. Cấu hình các biến môi trường (Environment Variables) như hướng dẫn ở Bước 2 & 3.
 
 ### Bước 2: Khởi tạo Cơ sở dữ liệu (Supabase)
 1. Truy cập [Supabase.com](https://supabase.com/) và tạo một dự án mới.
@@ -70,16 +73,13 @@ Bây giờ bạn có thể truy cập `/admin` để thay đổi màu sắc, ph�
 Khi ZenStory có phiên bản mới, hãy làm theo các bước sau để cập nhật website của bạn:
 
 ### 1. Cập nhật Mã nguồn (Code)
-Nếu bạn đã dùng nút **Deploy to Vercel**:
-1. Truy cập vào kho mã nguồn (Repository) của bạn trên GitHub.
-2. Nhấn vào nút **Sync fork** -> **Update branch**.
-3. Vercel sẽ tự động phát hiện thay đổi và triển khai bản cập nhật sau vài phút.
+- **Nếu bạn đã Fork dự án**: Truy cập vào Repo của bạn trên GitHub, nhấn **Sync fork** -> **Update branch**. Vercel sẽ tự động triển khai bản mới.
+- **Nếu bạn dùng nút Deploy nhanh**: Bạn cần tải bản mới về và upload thủ công lên Repo của mình, hoặc cấu hình Git remote để pull bản mới nhất từ `upstream`.
 
 ### 2. Cập nhật Cơ sở dữ liệu (Database)
-Nếu phiên bản mới có thay đổi về cấu trúc bảng hoặc tính năng (ví dụ: thêm Shoutbox, thêm Anti-copy):
+Khi có tính năng mới (ví dụ: Shoutbox, Anti-copy), bạn cần cập nhật cấu trúc DB:
 1. Truy cập vào **SQL Editor** trên Supabase.
-2. Bạn có thể mở file [init_database.sql](./init_database.sql) mới nhất, copy toàn bộ và chạy lại (**Run**). Các lệnh đã được thiết kế an toàn để không ghi đè dữ liệu cũ.
-3. Hoặc bạn có thể kiểm tra thư mục `supabase/migrations` và chỉ chạy những file SQL mới nhất dựa trên mốc thời gian.
+2. Copy toàn bộ nội dung file [init_database.sql](./init_database.sql) mới nhất và nhấn **Run**. Lệnh đã được thiết kế an toàn để không ghi đè dữ liệu cũ của bạn.
 
 ---
 
