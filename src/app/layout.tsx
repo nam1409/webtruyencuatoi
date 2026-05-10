@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ReaderProvider } from "../features/reader/context/ReaderContext";
 import { PWAProvider } from "@/components/providers/PWAProvider";
+import NextTopLoader from "nextjs-toploader";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -124,8 +125,19 @@ export default async function RootLayout({
       >
         <ReaderProvider initialSettings={{...settings, default_theme: activeTheme}}>
           <PWAProvider>
+            <NextTopLoader 
+              color={primaryColor}
+              initialPosition={0.08}
+              crawlSpeed={200}
+              height={3}
+              crawl={true}
+              showSpinner={false}
+              easing="ease"
+              speed={200}
+              shadow={`0 0 10px ${primaryColor},0 0 5px ${primaryColor}`}
+            />
             {children}
-            <Toaster position="top-center" richColors />
+            <Toaster position="top-center" richColors closeButton />
           </PWAProvider>
         </ReaderProvider>
       </body>

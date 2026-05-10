@@ -68,17 +68,67 @@
   html {
     @apply font-sans;
   }
+  
+  /* Standard list styles reset for reader/editor */
+  ul {
+    list-style-type: disc;
+  }
+  ol {
+    list-style-type: decimal;
+  }
+
+  .ProseMirror .zen-embed-container {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .ProseMirror .zen-embed-container::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    cursor: pointer;
+    background: transparent;
+    border-radius: 12px;
+  }
+
+  .ProseMirror .zen-embed-container:hover::after {
+    background: oklch(0.7 0.2 280 / 0.05);
+    border: 2px solid oklch(0.7 0.2 280 / 0.2);
+  }
+
+  .ProseMirror .zen-embed-container.ProseMirror-selectednode::after {
+    border: 2px solid oklch(0.7 0.2 280);
+    background: oklch(0.7 0.2 280 / 0.1);
+  }
+
+  .ProseMirror iframe {
+    pointer-events: none !important;
+  }
 }
 
 /* Typography for Reader */
 .prose-reader {
   @apply leading-relaxed text-lg sm:text-xl max-w-2xl mx-auto;
   font-family: var(--reader-font, var(--font-serif));
-  user-select: none; /* Default to protected */
+  user-select: none;
 }
 
 .prose-reader p {
   @apply mb-6 transition-all duration-300 cursor-pointer hover:bg-primary/5 rounded-xl px-2 -mx-2;
+}
+
+.prose-reader ul, .prose-reader ol {
+  @apply mb-6 ml-6 space-y-2;
+}
+
+.prose-reader ul {
+  list-style-type: disc !important;
+}
+
+.prose-reader ol {
+  list-style-type: decimal !important;
 }
 
 .no-select {
@@ -215,6 +265,23 @@
     position: relative !important;
   }
 
+  /* Editor Styles */
+  .prose ul, .tiptap ul {
+    list-style-type: disc !important;
+    margin-left: 1.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  .prose ol, .tiptap ol {
+    list-style-type: decimal !important;
+    margin-left: 1.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .prose li, .tiptap li {
+    margin-bottom: 0.5rem !important;
+  }
+
   .spoiler-text * {
     color: transparent !important;
     background-color: transparent !important;
@@ -241,5 +308,119 @@
   .spoiler-text.revealed * {
     color: inherit !important;
     filter: blur(0) !important;
+  }
+
+  /* Annotation Styles */
+  .annotation-text {
+    @apply border-b-2 border-primary/40 bg-primary/5 cursor-help transition-all duration-300 rounded-sm px-0.5;
+  }
+
+  .annotation-text:hover {
+    @apply border-primary bg-primary/10;
+  }
+
+  /* Editor specific overrides */
+  .prose .spoiler-text {
+    filter: blur(4px) !important;
+    background-color: oklch(0.5 0.2 264 / 0.1) !important;
+  }
+  
+  .prose .spoiler-text:hover {
+    filter: blur(0) !important;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0.05 264 / 0.2);
+    border-radius: 20px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background 0.3s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.6 0.2 264 / 0.5);
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* Block Animations */
+  [data-animation] {
+    opacity: 0;
+    animation-fill-mode: forwards;
+    animation-duration: var(--animation-duration, 0.6s);
+    animation-delay: var(--animation-delay, 0ms);
+    animation-play-state: paused;
+  }
+
+  [data-animation].in-view {
+    animation-play-state: running;
+  }
+
+  .animate-block-fade.in-view { animation-name: block-fade-in; }
+  .animate-block-slide-up.in-view { animation-name: block-slide-up; }
+  .animate-block-slide-down.in-view { animation-name: block-slide-down; }
+  .animate-block-zoom-in.in-view { animation-name: block-zoom-in; }
+  .animate-block-blur-in.in-view { animation-name: block-blur-in; }
+
+  @keyframes block-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes block-slide-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes block-slide-down {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes block-zoom-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes block-blur-in {
+    from { opacity: 0; filter: blur(10px); }
+    to { opacity: 1; filter: blur(0); }
+  }
+
+  /* Editor indicators */
+  .prose [data-animation] {
+    opacity: 1 !important; 
+    animation-play-state: paused !important;
+    position: relative;
+    border-left: 2px dashed oklch(0.7 0.2 280 / 0.3);
+    padding-left: 1rem !important;
+  }
+
+  .prose [data-animation]::before {
+    content: "✨ " attr(data-animation);
+    position: absolute;
+    left: -4rem;
+    top: 0;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: oklch(0.7 0.2 280);
+    background: oklch(0.7 0.2 280 / 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0.6;
+    pointer-events: none;
+    white-space: nowrap;
   }
 }

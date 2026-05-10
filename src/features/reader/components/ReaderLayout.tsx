@@ -12,8 +12,9 @@ import { CharacterTooltip } from "./CharacterTooltip";
 import { TableOfContents } from "./TableOfContents";
 import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Button } from "@base-ui/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { saveReadingProgress } from "@/actions/progress";
+import { Button } from "@/components/ui/button";
 
 interface ReaderLayoutProps {
   children: React.ReactNode;
@@ -44,14 +45,20 @@ export function ReaderLayout({
   initialScroll = 0,
   versions = [],
 }: ReaderLayoutProps) {
-  const { settings, comments, setComments } = useReader();
+  const { settings, comments, setComments, setSelectedParagraph: setGlobalSelectedParagraph } = useReader();
+  const selectedParagraph = settings.selectedParagraph as string | null;
+  const setSelectedParagraph = (id: string | null) => setGlobalSelectedParagraph(id);
+  
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showSettings, setShowSettings] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
-  const [selectedParagraph, setSelectedParagraph] = useState<string | null>(null);
   const [characters, setCharacters] = useState<any[]>([]);
   const [activeCharacter, setActiveCharacter] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [scrollProgress, setScrollProgress] = useState(0);
+
+  const currentVersionId = searchParams.get('v') || versions.find(v => v.is_primary)?.id || 'main';
 
   // Only consider published chapters for public navigation
   const publishedChapters = [...chapters]
@@ -107,6 +114,17 @@ export function ReaderLayout({
   useEffect(() => {
     const handleParagraphClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      
+      // Ignore clicks inside the password gate
+      if (target.closest('.password-gate-container')) {
+        return;
+      }
+      
+      // Nếu nhấn vào các phần tử tương tác đặc biệt, không mở bảng bình luận
+      if (target.closest('.spoiler-text, .character-mention, .annotation-span, [data-slot="dialog-trigger"]')) {
+        return;
+      }
+
       const bubble = target.closest('.comment-bubble');
       const paragraph = target.closest('[data-paragraph-id]');
 
@@ -254,17 +272,17 @@ export function ReaderLayout({
           <div className="flex items-center gap-2">
             {/* Version Switcher */}
             {versions.length > 1 && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/50 border border-border rounded-xl">
-                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Phiên bản:</span>
+              <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-muted/50 border border-border rounded-xl">
+                <span className="text-[8px] sm:text-[9px] font-black uppercase text-muted-foreground/60">Phiên bản:</span>
                 <select 
                   className="bg-transparent border-none outline-none text-[10px] font-bold text-primary cursor-pointer"
-                  value={new URLSearchParams(window.location.search).get('v') || versions.find(v => v.is_primary)?.id || ''}
+                  value={currentVersionId}
                   onChange={(e) => {
                     const v = e.target.value;
-                    const url = new URL(window.location.href);
-                    if (v) url.searchParams.set('v', v);
-                    else url.searchParams.delete('v');
-                    window.location.href = url.toString();
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (v) params.set('v', v);
+                    else params.delete('v');
+                    router.push(`?${params.toString()}`);
                   }}
                 >
                   {versions.map(v => (

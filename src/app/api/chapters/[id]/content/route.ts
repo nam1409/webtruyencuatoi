@@ -3,14 +3,17 @@ import { NextResponse } from "next/server";
 import { obfuscateToGlyphs } from "@/lib/obfuscator";
 import { redis, ratelimit } from "@/lib/redis";
 import { headers } from "next/headers";
+import { renderToHtml } from "@/lib/anti-copy";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const url = new URL(request.url);
+  const versionId = url.searchParams.get('v');
+  const cacheKey = versionId ? `chapter:content:${id}:v:${versionId}` : `chapter:content:${id}`;
   
-  // 1. Rate Limiting dựa trên IP
   const headerList = await headers();
   const ip = headerList.get("x-forwarded-for") || "anonymous";
   
@@ -20,72 +23,164 @@ export async function GET(
       if (!success) {
         return NextResponse.json({ error: "Quá nhiều yêu cầu. Vui lòng thử lại sau." }, { status: 429 });
       }
+
+      // 1. Kiểm tra Cache Redis trước
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        console.log("API DEBUG: Returning CACHED content for key:", cacheKey);
+        return NextResponse.json({ ...cached as any, source: 'redis_cache' });
+      }
     }
 
-    // 1. Lấy thông tin bảo mật từ Supabase trước
     const supabase = await createClient();
-    const { data: chapter, error } = await supabase
-      .from("chapters")
-      .select("content_json, password_hash, stories(is_protected)")
-      .eq("id", id)
-      .single();
+    
+    let resolvedContent = null;
+    let resolvedConfig = null;
 
-    if (error || !chapter) {
-      return NextResponse.json({ error: "Chapter not found" }, { status: 404 });
+    // 1. Trường hợp yêu cầu đích danh Bản gốc (v=main)
+    console.log("API DEBUG: Requesting versionId:", versionId, "for chapter:", id);
+
+    if (versionId === 'main') {
+      const { data: chapterData } = await supabase
+        .from("chapters")
+        .select("content_json, password_hash, password_hint, is_anti_copy, stories(is_protected)")
+        .eq("id", id)
+        .single();
+      
+      if (chapterData) {
+        console.log("API DEBUG: Found Original Content");
+        resolvedContent = chapterData.content_json;
+        resolvedConfig = chapterData;
+      }
+    } 
+    // 2. Trường hợp yêu cầu một phiên bản cụ thể qua ID
+    else if (versionId) {
+      const { data: vData, error: vError } = await supabase
+        .from("chapter_versions")
+        .select("content_json, chapters(password_hash, password_hint, is_anti_copy, stories(is_protected))")
+        .eq("id", versionId)
+        .eq("status", "published")
+        .single();
+      
+      if (vError) {
+        console.error("API DEBUG: Error fetching version:", vError);
+      }
+
+      if (vData) {
+        console.log("API DEBUG: Found Version Content for ID:", versionId);
+        resolvedContent = vData.content_json;
+        const chapters: any = vData.chapters;
+        resolvedConfig = {
+          password_hash: chapters?.password_hash,
+          password_hint: chapters?.password_hint,
+          is_anti_copy: chapters?.is_anti_copy,
+          stories: chapters?.stories
+        };
+      } else {
+        console.log("API DEBUG: Version ID not found or not published:", versionId);
+      }
     }
 
-    // 2. Kiểm tra mật khẩu
-    const providedPassword = request.headers.get("x-chapter-password");
-    if (chapter.password_hash && chapter.password_hash !== providedPassword) {
+    // 3. Trường hợp không gửi v (Lấy bản mặc định/Primary)
+    if (!resolvedContent) {
+      console.log("API DEBUG: No specific content resolved, trying primary...");
+      const { data: primaryV } = await supabase
+        .from("chapter_versions")
+        .select("content_json, chapters(password_hash, password_hint, is_anti_copy, stories(is_protected))")
+        .eq("chapter_id", id)
+        .eq("status", "published")
+        .eq("is_primary", true)
+        .maybeSingle();
+
+      if (primaryV) {
+        resolvedContent = primaryV.content_json;
+        const chapters: any = primaryV.chapters;
+        resolvedConfig = {
+          password_hash: chapters?.password_hash,
+          password_hint: chapters?.password_hint,
+          is_anti_copy: chapters?.is_anti_copy,
+          stories: chapters?.stories
+        };
+      } else {
+        const { data: chapterData, error: cError } = await supabase
+          .from("chapters")
+          .select("content_json, password_hash, password_hint, is_anti_copy, stories(is_protected)")
+          .eq("id", id)
+          .single();
+
+        if (cError || !chapterData) {
+          return NextResponse.json({ error: "Chapter not found" }, { status: 404 });
+        }
+        resolvedContent = chapterData.content_json;
+        resolvedConfig = chapterData;
+      }
+    }
+
+    // Kiểm tra mật khẩu
+    const rawPassword = request.headers.get("x-chapter-password");
+    const providedPassword = rawPassword ? decodeURIComponent(rawPassword) : null;
+    
+    if (!resolvedConfig) {
+      return NextResponse.json({ error: "Không tìm thấy nội dung chương." }, { status: 404 });
+    }
+
+    if (resolvedConfig.password_hash && resolvedConfig.password_hash !== providedPassword) {
       return NextResponse.json({ 
         is_locked: true,
+        password_hint: resolvedConfig.password_hint,
         error: "Mật khẩu không chính xác hoặc chương này được bảo vệ." 
       }, { status: 403 });
     }
 
-    // 3. Nếu vượt qua bảo mật, mới kiểm tra Cache Redis
-    const cacheKey = `chapter_content:${id}`;
-    if (process.env.UPSTASH_REDIS_REST_URL && !chapter.password_hash) {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const storyData = Array.isArray(chapter.stories) ? chapter.stories[0] : chapter.stories;
-        return NextResponse.json({ 
-          ...(cached as any), 
-          source: 'cache',
-          is_protected: (storyData as any)?.is_protected 
-        });
-      }
-    }
-
-    // 4. Mã hóa nội dung (Chỉ mã hóa nếu chương được đánh dấu bảo vệ)
-    if (!chapter.content_json) {
+    if (!resolvedContent) {
+      console.log("API DEBUG: Final check - No content found even after all fallbacks");
       return NextResponse.json({ data: { type: 'doc', content: [] }, key: '', source: 'db' });
     }
 
-    try {
-      // Nếu chương được bảo vệ, dùng Glyph Mapping, ngược lại dùng nội dung gốc
-      const storyData = Array.isArray(chapter.stories) ? chapter.stories[0] : chapter.stories;
-      const isProtected = (storyData as any)?.is_protected;
-      const responseData = isProtected 
-        ? obfuscateToGlyphs(chapter.content_json)
-        : { data: chapter.content_json, key: '' };
-
-      // 5. Lưu vào Cache
-      if (process.env.UPSTASH_REDIS_REST_URL && !chapter.password_hash) {
-        await redis.set(cacheKey, responseData, { ex: 86400 });
+    // Lấy thông tin bảo mật một cách an toàn
+    // Nếu là bản gốc, resolvedConfig chính là chapter object
+    // Nếu là version, resolvedConfig là vData.chapters
+    const config = resolvedConfig;
+    const stories = config.stories;
+    
+    // Kiểm tra is_protected từ stories (có thể là object hoặc array)
+    let isStoryProtected = false;
+    if (stories) {
+      if (Array.isArray(stories)) {
+        isStoryProtected = !!stories[0]?.is_protected;
+      } else {
+        isStoryProtected = !!(stories as any).is_protected;
       }
-
-      return NextResponse.json({ ...responseData, source: 'db', is_protected: isProtected });
-    } catch (obfuscationError) {
-      console.error("Obfuscation Error:", obfuscationError);
-      return NextResponse.json({ 
-        data: chapter.content_json, // Fallback về nội dung gốc nếu mã hóa lỗi
-        key: '',
-        error: "Mã hóa nội dung thất bại" 
-      });
     }
-  } catch (error) {
-    console.error("API Error:", error);
+    
+    const isCanvasProtected = isStoryProtected;
+    const isAntiCopy = !!config.is_anti_copy;
+
+    let responseData;
+    if (isCanvasProtected) {
+      // 1. Nội dung bảo vệ bằng Canvas (Glyph Obfuscation)
+      const obfuscated = obfuscateToGlyphs(resolvedContent);
+      responseData = { 
+        data: obfuscated.data, 
+        is_rendered: false, 
+        key: obfuscated.key 
+      };
+    } else if (isAntiCopy) {
+      // 2. Nội dung bảo vệ bằng "Rác" (Static HTML)
+      const renderedHtml = renderToHtml(resolvedContent, id);
+      const encodedHtml = Buffer.from(renderedHtml).toString('base64');
+      responseData = { html: encodedHtml, is_rendered: true, key: '' };
+    } else {
+      // 3. Nội dung không bảo vệ (Render thẳng)
+      responseData = { data: resolvedContent, is_rendered: false, key: '' };
+    }
+
+    if (process.env.UPSTASH_REDIS_REST_URL && !resolvedConfig.password_hash) {
+      await redis.set(cacheKey, responseData, { ex: 86400 });
+    }
+
+    return NextResponse.json({ ...responseData, source: 'database_fresh' });
+  } catch (error: any) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

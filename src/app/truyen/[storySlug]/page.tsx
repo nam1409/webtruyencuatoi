@@ -1,6 +1,7 @@
 import { getStoryBySlug } from "@/actions/stories";
 import { getChaptersByStory } from "@/actions/chapters";
 import { getVolumesByStory } from "@/actions/volumes";
+import { getCharactersByStory } from "@/actions/characters";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Metadata } from "next";
@@ -47,8 +48,11 @@ import {
   FileText,
   Calendar,
   Clock,
-  ChevronRight
+  ChevronRight,
+  User,
+  Info
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCollaborators } from "@/actions/collaborators";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -84,11 +88,12 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
     notFound();
   }
 
-  const [allChapters, volumes, ratingData, collaborators] = await Promise.all([
+  const [allChapters, volumes, ratingData, collaborators, characters] = await Promise.all([
     getChaptersByStory(story.id, true),
     getVolumesByStory(story.id),
     getStoryRating(story.id),
-    getCollaborators(story.id)
+    getCollaborators(story.id),
+    getCharactersByStory(story.id)
   ]);
 
   // Chapters are already filtered by the action
@@ -231,48 +236,84 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
             </div>
           </section>
 
-          {/* Table of Contents */}
-          <section className="space-y-8">
-             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black tracking-tight uppercase flex items-center gap-2">
-                <div className="w-1.5 h-6 bg-primary rounded-full" />
-                Mục lục
-              </h2>
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                {chapters.length} chương đã đăng
-              </span>
-            </div>
-
-            <div className="space-y-10">
-              {groupedChapters.map((volume) => (
-                <div key={volume.id} className="space-y-4">
-                  <div className="flex items-center gap-3 px-6 py-3 bg-primary/5 rounded-2xl border border-primary/10">
-                    <Layers className="w-4 h-4 text-primary" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-primary">{volume.title}</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
-                    {volume.chapters.map((chapter: any) => (
-                      <ChapterItem key={chapter.id} chapter={chapter} storySlug={story.slug} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {orphanChapters.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 px-6 py-3 bg-muted rounded-2xl border border-border">
-                    <FileText className="w-4 h-4 text-muted-foreground" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Chương lẻ / Phụ lục</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
-                    {orphanChapters.map((chapter) => (
-                      <ChapterItem key={chapter.id} chapter={chapter} storySlug={story.slug} />
-                    ))}
-                  </div>
-                </div>
+          {/* Main Content Tabs */}
+          <Tabs defaultValue="chapters" className="w-full">
+            <TabsList className="w-full justify-start bg-transparent border-b border-border/40 rounded-none h-auto p-0 gap-8 mb-8">
+              <TabsTrigger value="chapters" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary bg-transparent px-0 py-4 font-black uppercase text-[10px] tracking-widest opacity-50 data-[state=active]:opacity-100 transition-all">
+                Mục lục ({chapters.length})
+              </TabsTrigger>
+              <TabsTrigger value="intro" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary bg-transparent px-0 py-4 font-black uppercase text-[10px] tracking-widest opacity-50 data-[state=active]:opacity-100 transition-all">
+                Giới thiệu
+              </TabsTrigger>
+              {characters.length > 0 && (
+                <TabsTrigger value="characters" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary bg-transparent px-0 py-4 font-black uppercase text-[10px] tracking-widest opacity-50 data-[state=active]:opacity-100 transition-all">
+                  Nhân vật ({characters.length})
+                </TabsTrigger>
               )}
-            </div>
-          </section>
+            </TabsList>
+
+            <TabsContent value="chapters" className="space-y-10 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="space-y-10">
+                {groupedChapters.map((volume) => (
+                  <div key={volume.id} className="space-y-4">
+                    <div className="flex items-center gap-3 px-6 py-3 bg-primary/5 rounded-2xl border border-primary/10">
+                      <Layers className="w-4 h-4 text-primary" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-primary">{volume.title}</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
+                      {volume.chapters.map((chapter: any) => (
+                        <ChapterItem key={chapter.id} chapter={chapter} storySlug={story.slug} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {orphanChapters.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 px-6 py-3 bg-muted rounded-2xl border border-border">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Chương lẻ / Phụ lục</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
+                      {orphanChapters.map((chapter) => (
+                        <ChapterItem key={chapter.id} chapter={chapter} storySlug={story.slug} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="intro" className="outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="prose-reader text-lg text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium bg-muted/10 p-8 rounded-[2.5rem] border border-border/30 italic">
+                {story.description || "Chưa có mô tả cho tác phẩm này."}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="characters" className="outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {characters.map((char: any) => (
+                  <div key={char.id} className="flex items-start gap-5 p-5 bg-muted/10 rounded-[2rem] border border-border/40 hover:bg-muted/20 transition-all group">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-muted flex-shrink-0 shadow-lg border-2 border-background">
+                      {char.avatar_url ? (
+                        <img src={char.avatar_url} alt={char.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-8 h-8 text-muted-foreground/20" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-base font-black tracking-tight">{char.name}</h4>
+                      <p className="text-xs text-muted-foreground font-medium leading-relaxed line-clamp-3 italic">
+                        {char.description || "Nhân vật này chưa có mô tả chi tiết."}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Right: Metadata & Stats */}

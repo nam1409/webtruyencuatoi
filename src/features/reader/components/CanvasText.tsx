@@ -18,6 +18,7 @@ interface CanvasTextProps {
   maxWidth: number;
   theme?: string;
   commentCount?: number;
+  onSelect?: () => void;
 }
 
 export const CanvasText = React.memo(({ 
@@ -29,7 +30,8 @@ export const CanvasText = React.memo(({
   color, 
   maxWidth,
   theme,
-  commentCount = 0
+  commentCount = 0,
+  onSelect
 }: CanvasTextProps) => {
   const { isFocused } = useReader();
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -164,7 +166,7 @@ export const CanvasText = React.memo(({
     });
   }, [draw]);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -173,6 +175,8 @@ export const CanvasText = React.memo(({
     const y = (e.clientY - rect.top) * (window.devicePixelRatio || 1);
 
     const regions = (canvas as any)._spoilerRegions || [];
+    let isSpoilerClicked = false;
+    
     for (const region of regions) {
       if (x >= region.rect.x && x <= region.rect.x + region.rect.w &&
           y >= region.rect.y && y <= region.rect.y + region.rect.h) {
@@ -181,9 +185,15 @@ export const CanvasText = React.memo(({
           next.add(region.id);
           return next;
         });
+        isSpoilerClicked = true;
         e.stopPropagation();
         break;
       }
+    }
+
+    // Nếu không phải click vào spoiler thì kích hoạt onSelect
+    if (!isSpoilerClicked && onSelect) {
+      onSelect();
     }
   };
 
@@ -191,8 +201,8 @@ export const CanvasText = React.memo(({
     <div className="relative inline-block w-full">
       <canvas 
         ref={canvasRef}
-        onPointerDown={handlePointerDown}
-        className={`block transition-all duration-500 ${!isFocused ? 'blur-md grayscale opacity-50' : ''}`}
+        onClick={handleClick}
+        className={`block transition-all duration-500 cursor-pointer ${!isFocused ? 'blur-md grayscale opacity-50' : ''}`}
       />
     </div>
   );

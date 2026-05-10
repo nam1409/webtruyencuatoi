@@ -128,13 +128,19 @@ export function ReaderProvider({
     if (customTheme) {
       body.style.setProperty('--background', customTheme.bg);
       body.style.setProperty('--foreground', customTheme.text);
+      body.style.setProperty('--primary', customTheme.primary || 'var(--primary)');
+      body.style.setProperty('--primary-foreground', customTheme.text); // Thường text theme hợp với primary fg
       body.style.setProperty('--muted', customTheme.muted || customTheme.bg);
+      body.style.setProperty('--muted-foreground', customTheme.text + '80'); // Tạo độ mờ 50%
       body.style.setProperty('--border', customTheme.border || customTheme.text + '20');
     } else {
       // Reset style if not custom
       body.style.removeProperty('--background');
       body.style.removeProperty('--foreground');
+      body.style.removeProperty('--primary');
+      body.style.removeProperty('--primary-foreground');
       body.style.removeProperty('--muted');
+      body.style.removeProperty('--muted-foreground');
       body.style.removeProperty('--border');
     }
 

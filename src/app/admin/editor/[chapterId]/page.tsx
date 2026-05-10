@@ -77,11 +77,11 @@ export default function EditorPage({ params }: PageProps) {
     loadChapter();
   }, [chapterId, router]);
 
-  // Tự động ẩn sidebar khi bật chế độ so sánh
+  // Luôn ẩn sidebar trong editor để tối ưu không gian
   useEffect(() => {
-    setHideSidebar(isSplitView);
+    setHideSidebar(true);
     return () => setHideSidebar(false);
-  }, [isSplitView, setHideSidebar]);
+  }, [setHideSidebar]);
 
   const handleSave = useCallback(async (newContent: any) => {
     if (!newContent) return;
@@ -91,11 +91,11 @@ export default function EditorPage({ params }: PageProps) {
     
     // console.log("Client: Sending (Cleaned):", JSON.stringify(cleanContent).substring(0, 500)); 
     try {
-      if (selectedTrackId) {
+      if (selectedTrackId && selectedTrackId !== "original") {
         // Nếu đang chọn một luồng (Track), lưu vào luồng đó
         await updateVersionContent(selectedTrackId, cleanContent);
       } else {
-        // Fallback lưu vào draft chính của chapter (tương thích ngược)
+        // Lưu vào draft chính của chapter (dành cho bản gốc hoặc fallback)
         await updateChapter(chapterId, { content_draft: cleanContent });
       }
     } catch (error) {
@@ -106,7 +106,9 @@ export default function EditorPage({ params }: PageProps) {
 
   const handlePublish = async () => {
     try {
-      await publishChapter(chapterId, selectedTrackId || undefined);
+      // Nếu là bản gốc, truyền undefined để publishChapter lấy draft từ chapters table
+      const versionId = (selectedTrackId === "original") ? undefined : (selectedTrackId || undefined);
+      await publishChapter(chapterId, versionId);
       toast.success("Đã xuất bản chương thành công!");
     } catch (error) {
       toast.error("Lỗi khi xuất bản");
@@ -144,9 +146,9 @@ export default function EditorPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background dark:bg-zinc-950 flex flex-col font-sans selection:bg-primary/20">
+    <div className="h-screen flex flex-col bg-background dark:bg-zinc-950 font-sans selection:bg-primary/20 overflow-hidden">
       {/* Editor Header */}
-      <header className="sticky bg-background/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-border/40">
+      <header className="flex-none bg-background/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-border/40 z-30">
         <div className="mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href={`/admin/stories/${chapter.story_id}`} className="group p-2.5 bg-background border border-border/40 rounded-2xl hover:bg-primary hover:border-primary transition-all duration-500 shadow-sm">
@@ -194,8 +196,8 @@ export default function EditorPage({ params }: PageProps) {
             
             <button 
               onClick={() => {
-                if (!selectedTrackId) {
-                  toast.error("Vui lòng chọn hoặc tạo một phiên bản (Track) ở cột phải trước khi lưu.");
+                if (!selectedTrackId || selectedTrackId === "original") {
+                  toast.error("Bản gốc không hỗ trợ lưu điểm khôi phục. Vui lòng tạo hoặc chọn một Luồng nội dung (Track) để dùng tính năng này.");
                   return;
                 }
                 setShowSnapshotDialog(true);
@@ -229,7 +231,7 @@ export default function EditorPage({ params }: PageProps) {
             <div className="flex gap-8 items-stretch h-full min-h-[calc(100vh-200px)]">
               {/* Left Column: Comparison (Only in Split View) */}
               {isSplitView && (
-                <div className="flex-1 bg-muted/5 rounded-[2.5rem] border border-border/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-left-4 duration-500">
+                <div className="flex-1 bg-muted/5 rounded-[2.5rem] border border-border/40 flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
                   <div className="p-6 bg-muted/20 border-b border-border/40 flex items-center justify-between h-[73px]">
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
@@ -301,7 +303,7 @@ export default function EditorPage({ params }: PageProps) {
 
               {/* Right Column: Main Editor */}
               <div className={cn(
-                "bg-background dark:bg-zinc-900 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.05)] rounded-[2.5rem] min-h-[1200px] flex flex-col overflow-hidden border border-border/40 transition-all duration-500",
+                "bg-background dark:bg-zinc-900 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.05)] rounded-[2.5rem] min-h-[1200px] flex flex-col border border-border/40 transition-all duration-500",
                 isSplitView ? "flex-1" : "w-full"
               )}>
                 {/* Internal Title Input */}
@@ -345,8 +347,8 @@ export default function EditorPage({ params }: PageProps) {
 
         {/* Sidebar Panel - Tự động ẩn khi so sánh để cân đối */}
         {!isSplitView && (
-          <aside className="hidden lg:flex w-80 flex-col bg-background border-l border-border/50 overflow-hidden animate-in slide-in-from-right duration-500">
-            <Tabs defaultValue="history" className="flex-1 flex flex-col">
+          <aside className="hidden lg:flex w-80 h-full flex-col bg-background border-l border-border/50 overflow-hidden animate-in slide-in-from-right duration-500">
+            <Tabs defaultValue="history" className="h-full flex flex-col overflow-hidden">
             <div className="px-4 pt-4 border-b border-border/30 bg-muted/20">
               <TabsList className="grid grid-cols-2 w-full p-1 bg-muted/50 rounded-2xl h-11">
                 <TabsTrigger value="history" className="rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -358,8 +360,8 @@ export default function EditorPage({ params }: PageProps) {
               </TabsList>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              <TabsContent value="history" className="m-0 mt-2">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <TabsContent value="history" className="m-0 flex-1 overflow-y-auto p-4 custom-scrollbar outline-none">
                 <VersionHistory 
                   chapterId={chapterId} 
                   onRollback={handleRollback} 
@@ -371,7 +373,7 @@ export default function EditorPage({ params }: PageProps) {
                   onTrackChange={setSelectedTrackId}
                 />
               </TabsContent>
-              <TabsContent value="settings" className="m-0 mt-2">
+              <TabsContent value="settings" className="m-0 flex-1 overflow-y-auto p-4 custom-scrollbar outline-none">
                 <EditorSettings chapter={chapter} volumes={volumes} onUpdate={async (updated) => setChapter(updated)} />
               </TabsContent>
             </div>

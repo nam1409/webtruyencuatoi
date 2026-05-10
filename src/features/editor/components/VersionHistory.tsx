@@ -10,11 +10,15 @@ import {
   createChapterVersion, 
   saveVersionSnapshot,
   restoreVersionToDraft,
+  publishVersionTrack,
+  updateVersionName,
+  deleteVersion,
+  getChapterOriginalContent,
   updateVersionStatus,
   setPrimaryVersion,
-  publishVersionTrack
+  updateChapterStatus
 } from "@/actions/chapters";
-import { Rocket } from "lucide-react";
+import { Rocket, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
@@ -47,14 +51,24 @@ export function VersionHistory({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isCreatingTrack, setIsCreatingTrack] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [originalContent, setOriginalContent] = useState<any>(null);
+  
+  const [editingTrack, setEditingTrack] = useState<any>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
-  // 1. Tải danh sách Tracks (Bản dịch, Bản Beta...)
+  // 1. Tải danh sách Tracks (Bản dịch, Bản Beta...) và Bản gốc
   const loadTracks = async () => {
     try {
-      const data = await getChapterVersions(chapterId);
-      setTracks(data);
-      if (data.length > 0 && !selectedTrackId) {
-        onTrackChange(data[0].id);
+      const [versions, original] = await Promise.all([
+        getChapterVersions(chapterId),
+        getChapterOriginalContent(chapterId)
+      ]);
+      
+      setTracks(versions);
+      setOriginalContent(original);
+      
+      if (versions.length > 0 && !selectedTrackId) {
+        onTrackChange(versions[0].id);
       }
     } catch (error) {
       toast.error("Không thể tải danh sách phiên bản");
@@ -87,7 +101,6 @@ export function VersionHistory({
 
   const handleCreateTrack = async (name: string) => {
     if (!name) return;
-
     setIsCreatingTrack(true);
     try {
       const newTrack = await createChapterVersion(chapterId, name);
@@ -98,6 +111,29 @@ export function VersionHistory({
       toast.error("Lỗi khi tạo phiên bản");
     } finally {
       setIsCreatingTrack(false);
+    }
+  };
+
+  const handleUpdateTrackName = async (name: string) => {
+    if (!editingTrack || !name) return;
+    try {
+      await updateVersionName(editingTrack.id, name);
+      toast.success("Đã đổi tên phiên bản");
+      loadTracks();
+    } catch (error) {
+      toast.error("Lỗi khi đổi tên");
+    }
+  };
+
+  const handleDeleteTrack = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa phiên bản này? Hành động này không thể hoàn tác.")) return;
+    try {
+      await deleteVersion(id);
+      toast.success("Đã xóa phiên bản");
+      if (selectedTrackId === id) onTrackChange(tracks.find(t => t.id !== id)?.id || null);
+      loadTracks();
+    } catch (error: any) {
+      toast.error(error.message || "Lỗi khi xóa phiên bản");
     }
   };
 
@@ -138,108 +174,225 @@ export function VersionHistory({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-2">
-          {tracks.length === 0 ? (
-            <button 
-              onClick={() => setShowCreateDialog(true)}
-              className="py-4 px-4 border-2 border-dashed border-border/40 rounded-2xl text-[10px] font-bold text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
+        <div className="grid grid-cols-1 gap-3">
+          {/* Bản gốc (Original Content from chapters table) */}
+          {originalContent && (
+            <button
+              onClick={() => {
+                onTrackChange("original");
+                onRollback(originalContent.content_draft || originalContent.content_json);
+              }}
+              className={cn(
+                "flex items-center justify-between p-4 rounded-2xl border transition-all text-left group relative overflow-hidden",
+                selectedTrackId === "original" 
+                  ? "bg-primary/5 border-primary/20 ring-2 ring-primary/5 shadow-sm" 
+                  : "bg-muted/5 border-border/40 hover:bg-muted/10 hover:border-border"
+              )}
             >
-              + Tạo bản thảo đầu tiên
-            </button>
-          ) : (
-            tracks.map((track) => (
-              <button
-                key={track.id}
-                onClick={() => {
-                  onTrackChange(track.id);
-                  onRollback(track.content_draft || track.content_json);
-                }}
-                className={cn(
-                  "flex items-center justify-between p-3 rounded-2xl border transition-all text-left group",
-                  selectedTrackId === track.id 
-                    ? "bg-primary/5 border-primary/20 ring-2 ring-primary/5" 
-                    : "bg-muted/10 border-transparent hover:bg-muted/20"
-                )}
-              >
-                <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-1 pr-8">
+                <div className="flex items-center gap-2">
                   <span className={cn(
                     "text-[10px] font-black uppercase tracking-wider",
-                    selectedTrackId === track.id ? "text-primary" : "text-foreground/70"
+                    selectedTrackId === "original" ? "text-primary" : "text-foreground/70"
                   )}>
-                    {track.name}
+                    Bản gốc (Database)
                   </span>
-                  <span className="text-[8px] text-muted-foreground/60">
-                    Cập nhật: {safeFormatDate(track.updated_at)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Status Badges */}
-                  <div className="flex flex-col items-end gap-1">
-                    {track.status === 'published' && (
-                      <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[7px] font-black uppercase rounded-md border border-emerald-500/20">
-                        Public
-                      </span>
-                    )}
-                    {track.is_primary && (
+                  <div className="flex items-center gap-1">
+                    {tracks.every(t => !t.is_primary) && (
                       <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[7px] font-black uppercase rounded-md border border-primary/20">
                         Primary
                       </span>
                     )}
+                    {originalContent.status === 'published' && (
+                      <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[7px] font-black uppercase rounded-md border border-emerald-500/20">
+                        Public
+                      </span>
+                    )}
+                    <span className="px-1.5 py-0.5 bg-muted text-muted-foreground text-[7px] font-black uppercase rounded-md border border-border">
+                      Static
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[8px] text-muted-foreground/60">
+                  Cập nhật: {safeFormatDate(originalContent.updated_at)}
+                </span>
+              </div>
+              <ChevronRight className={cn(
+                "w-3 h-3 transition-all flex-shrink-0",
+                selectedTrackId === "original" ? "text-primary" : "text-muted-foreground/20 group-hover:text-muted-foreground/40"
+              )} />
+              
+              {selectedTrackId === "original" && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+              )}
+
+              {/* Quick Actions for Original */}
+              <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 z-10 pointer-events-auto">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newStatus = originalContent.status === 'published' ? 'draft' : 'published';
+                    updateChapterStatus(chapterId, newStatus).then(() => loadTracks());
+                  }}
+                  className={cn(
+                    "p-1.5 rounded-lg border shadow-sm transition-all bg-background",
+                    originalContent.status === 'published' ? "border-emerald-500/20 text-emerald-500" : "border-border text-muted-foreground"
+                  )}
+                  title={originalContent.status === 'published' ? "Gỡ bài" : "Công khai bản gốc"}
+                >
+                  <Eye className="w-3 h-3" />
+                </button>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPrimaryVersion("original", chapterId).then(() => loadTracks());
+                  }}
+                  className={cn(
+                    "p-1.5 rounded-lg border shadow-sm transition-all bg-background",
+                    tracks.every(t => !t.is_primary) ? "border-primary/20 text-primary" : "border-border text-muted-foreground"
+                  )}
+                  title="Đặt bản gốc làm mặc định"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+            </button>
+          )}
+
+          {tracks.length === 0 && !originalContent ? (
+            <button 
+              onClick={() => setShowCreateDialog(true)}
+              className="py-6 px-4 border-2 border-dashed border-border/40 rounded-3xl text-[10px] font-bold text-muted-foreground hover:border-primary/40 hover:text-primary transition-all bg-muted/5"
+            >
+              + Tạo luồng nội dung đầu tiên
+            </button>
+          ) : (
+            tracks.map((track) => (
+              <div key={track.id} className="relative group">
+                <button
+                  onClick={() => {
+                    onTrackChange(track.id);
+                    onRollback(track.content_draft || track.content_json);
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left relative overflow-hidden",
+                    selectedTrackId === track.id 
+                      ? "bg-primary/5 border-primary/20 ring-2 ring-primary/5 shadow-sm" 
+                      : "bg-muted/10 border-transparent hover:bg-muted/20 hover:border-border/20"
+                  )}
+                >
+                  <div className="flex flex-col gap-1.5 pr-8">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-wider",
+                        selectedTrackId === track.id ? "text-primary" : "text-foreground/80"
+                      )}>
+                        {track.name}
+                      </span>
+                      {track.is_primary && (
+                        <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[7px] font-black uppercase rounded-md border border-primary/20">
+                          Primary
+                        </span>
+                      )}
+                      {track.status === 'published' && (
+                        <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[7px] font-black uppercase rounded-md border border-emerald-500/20">
+                          Public
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[8px] text-muted-foreground/60 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      {safeFormatDate(track.updated_at)}
+                    </span>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        try {
-                          await publishVersionTrack(track.id);
-                          toast.success(`Đã cập nhật bản công khai cho luồng ${track.name}`);
-                          loadTracks();
-                        } catch (err) {
-                          toast.error("Không thể cập nhật bản công khai");
-                        }
-                      }}
-                      className="p-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"
-                      title="Cập nhật bản nháp vào công khai (Public)"
-                    >
-                      <Rocket className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newStatus = track.status === 'published' ? 'draft' : 'published';
-                        updateVersionStatus(track.id, newStatus).then(() => loadTracks());
-                      }}
-                      className={cn(
-                        "p-1.5 rounded-lg border transition-all",
-                        track.status === 'published' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" : "bg-muted border-transparent text-muted-foreground"
-                      )}
-                      title={track.status === 'published' ? "Gỡ bài" : "Công khai bản này"}
-                    >
-                      <Eye className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPrimaryVersion(track.id).then(() => loadTracks());
-                      }}
-                      className={cn(
-                        "p-1.5 rounded-lg border transition-all",
-                        track.is_primary ? "bg-primary/10 border-primary/20 text-primary" : "bg-muted border-transparent text-muted-foreground"
-                      )}
-                      title="Đặt làm mặc định"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                  
                   <ChevronRight className={cn(
-                    "w-3 h-3 transition-all",
+                    "w-3 h-3 transition-all flex-shrink-0",
                     selectedTrackId === track.id ? "text-primary" : "text-muted-foreground/20 group-hover:text-muted-foreground/40"
                   )} />
+                  
+                  {selectedTrackId === track.id && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+                  )}
+                </button>
+
+                {/* Quick Actions Overlay on Hover */}
+                <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 z-10 pointer-events-auto">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingTrack(track);
+                      setShowEditDialog(true);
+                    }}
+                    className="p-1.5 rounded-lg bg-background border border-border shadow-sm text-muted-foreground hover:text-primary transition-all"
+                    title="Đổi tên"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await publishVersionTrack(track.id);
+                        toast.success(`Đã cập nhật bản công khai cho luồng ${track.name}`);
+                        loadTracks();
+                      } catch (err) {
+                        toast.error("Không thể cập nhật bản công khai");
+                      }
+                    }}
+                    className="p-1.5 rounded-lg bg-background border border-emerald-500/20 shadow-sm text-emerald-500 hover:bg-emerald-500/10 transition-all"
+                    title="Xuất bản ngay"
+                  >
+                    <Rocket className="w-3 h-3" />
+                  </button>
+                  
+                  {!track.is_primary && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTrack(track.id);
+                      }}
+                      className="p-1.5 rounded-lg bg-background border border-red-500/20 shadow-sm text-red-500 hover:bg-red-500/10 transition-all"
+                      title="Xóa luồng"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                  
+                  <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newStatus = track.status === 'published' ? 'draft' : 'published';
+                      updateVersionStatus(track.id, newStatus).then(() => loadTracks());
+                    }}
+                    className={cn(
+                      "p-1.5 rounded-lg border shadow-sm transition-all bg-background",
+                      track.status === 'published' ? "border-emerald-500/20 text-emerald-500" : "border-border text-muted-foreground"
+                    )}
+                    title={track.status === 'published' ? "Gỡ bài" : "Công khai bản này"}
+                  >
+                    <Eye className="w-3 h-3" />
+                  </button>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPrimaryVersion(track.id, chapterId).then(() => loadTracks());
+                    }}
+                    className={cn(
+                      "p-1.5 rounded-lg border shadow-sm transition-all bg-background",
+                      track.is_primary ? "border-primary/20 text-primary" : "border-border text-muted-foreground"
+                    )}
+                    title="Đặt làm mặc định"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>
@@ -328,8 +481,10 @@ export function VersionHistory({
         )}
       </div>
 
-      <p className="text-[9px] text-muted-foreground/40 text-center px-4 mt-4 leading-relaxed">
-        Chọn một luồng nội dung bên trên để xem lịch sử chỉnh sửa chi tiết của luồng đó.
+      <p className="text-[9px] text-muted-foreground/40 text-center px-4 mt-6 leading-relaxed">
+        {selectedTrackId === "original" 
+          ? "Bản gốc không hỗ trợ lưu điểm khôi phục. Hãy tạo luồng mới (+) để quản lý lịch sử."
+          : "Chọn một luồng nội dung bên trên để xem lịch sử chỉnh sửa chi tiết của luồng đó."}
       </p>
 
       <PromptDialog
@@ -339,6 +494,16 @@ export function VersionHistory({
         description="Đặt tên cho bản thảo mới của bạn (ví dụ: Bản dịch, Bản Edit, Bản Beta...)"
         placeholder="Nhập tên phiên bản..."
         onConfirm={handleCreateTrack}
+      />
+
+      <PromptDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        title="Đổi tên phiên bản"
+        description="Nhập tên mới cho luồng nội dung này."
+        defaultValue={editingTrack?.name}
+        placeholder="Tên phiên bản mới..."
+        onConfirm={handleUpdateTrackName}
       />
     </div>
   );

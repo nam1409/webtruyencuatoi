@@ -59,6 +59,37 @@ export async function checkFollowStatus(storyId: string) {
   return !!data;
 }
 
+export async function getUserFollowedStories() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("story_follows")
+    .select(`
+      story_id,
+      created_at,
+      stories (
+        id,
+        title,
+        slug,
+        cover_url,
+        status,
+        profiles:author_id (display_name)
+      )
+    `)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching followed stories:", error);
+    return [];
+  }
+
+  return data.map(f => f.stories);
+}
+
 export async function getFollowers(storyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

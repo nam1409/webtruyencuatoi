@@ -11,6 +11,7 @@ interface OfflineSupportProps {
   initialContent: any;
   settings: any;
   commentCounts: any;
+  characters?: any[];
 }
 
 export function OfflineSupport({ 
@@ -18,13 +19,25 @@ export function OfflineSupport({
   chapterId, 
   initialContent, 
   settings, 
-  commentCounts 
+  commentCounts,
+  characters = []
 }: OfflineSupportProps) {
-  const [content, setContent] = useState(initialContent);
+  const [content, setContent] = useState(() => {
+    if (typeof initialContent === 'string') {
+      try {
+        return JSON.parse(decodeURIComponent(escape(window.atob(initialContent))));
+      } catch (e) {
+        return initialContent;
+      }
+    }
+    return initialContent;
+  });
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // If we have no content from server, try to find offline
     if (!initialContent) {
       loadOfflineContent();
@@ -34,13 +47,31 @@ export function OfflineSupport({
   const loadOfflineContent = async () => {
     setIsLoading(true);
     try {
+      // 1. Thử lấy từ Offline Storage trước (IndexDB)
       const decrypted = await getOfflineChapter(storyId, chapterId);
       if (decrypted) {
         setContent(JSON.parse(decrypted));
         setIsOfflineMode(true);
+      } else {
+        // 2. Nếu không có offline, thử fetch từ API (cho trường hợp clean view-source)
+        const response = await fetch(`/api/chapters/${chapterId}/content`);
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.is_rendered && data.html) {
+            // Trường hợp Hardcore HTML Rendered
+            setContent(data);
+          } else {
+            // Trường hợp JSON truyền thống (Hardened hoặc Normal)
+            const finalData = typeof data.data === 'string' 
+              ? JSON.parse(decodeURIComponent(escape(window.atob(data.data)))) 
+              : data.data;
+            setContent(finalData);
+          }
+        }
       }
     } catch (error) {
-      console.error("Offline load failed:", error);
+      console.error("Content load failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -82,9 +113,11 @@ export function OfflineSupport({
         </div>
       )}
       <StaticContent 
+        chapterId={chapterId}
         content={content} 
         settings={settings} 
         commentCounts={commentCounts} 
+        characters={characters}
       />
     </div>
   );

@@ -99,29 +99,29 @@ $$;
 ALTER FUNCTION "public"."get_global_analytics"("days_back" integer) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."handle_chapter_version"() RETURNS "trigger"
+CREATE OR REPLACE FUNCTION "public"."handle_chapter_history_snapshot"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-  INSERT INTO chapter_versions (chapter_id, content_json, edited_by)
-  VALUES (OLD.id, OLD.content_json, auth.uid());
+  -- Chỉ lưu snapshot khi có thay đổi nội dung nháp (content_draft)
+  -- Throttling: Chỉ lưu nếu bản ghi gần nhất cách đây hơn 5 phút
+  IF (OLD.content_draft IS DISTINCT FROM NEW.content_draft) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM chapter_version_history 
+      WHERE version_id = NEW.id 
+      AND created_at > now() - interval '5 minutes'
+    ) THEN
+      INSERT INTO chapter_version_history (version_id, content_json, note, created_by)
+      VALUES (NEW.id, NEW.content_draft, 'Tự động lưu', NEW.created_by);
+    END IF;
+  END IF;
   
-  -- Keep only 10 most recent versions
-  DELETE FROM chapter_versions
-  WHERE id IN (
-    SELECT id FROM (
-      SELECT id, ROW_NUMBER() OVER (PARTITION BY chapter_id ORDER BY created_at DESC) as rn
-      FROM chapter_versions
-      WHERE chapter_id = OLD.id
-    ) t
-    WHERE t.rn > 10
-  );
   RETURN NEW;
 END;
 $$;
 
 
-ALTER FUNCTION "public"."handle_chapter_version"() OWNER TO "postgres";
+ALTER FUNCTION "public"."handle_chapter_history_snapshot"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
@@ -361,6 +361,8 @@ CREATE TABLE IF NOT EXISTS "public"."chapters" (
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "content_draft" "jsonb" DEFAULT '{"type": "doc", "content": []}'::"jsonb",
     "scheduled_at" timestamp with time zone,
+    "is_anti_copy" boolean DEFAULT false,
+    "content_status" "text" DEFAULT 'published'::"text",
     CONSTRAINT "chapters_status_check" CHECK (("status" = ANY (ARRAY['draft'::"text", 'published'::"text", 'scheduled'::"text"])))
 );
 
@@ -473,6 +475,18 @@ CREATE TABLE IF NOT EXISTS "public"."reading_progress" (
 ALTER TABLE "public"."reading_progress" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."shoutbox" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid",
+    "content" "text" NOT NULL,
+    "is_pinned" boolean DEFAULT false,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."shoutbox" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."site_settings" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "site_name" "text" DEFAULT 'ZenStory'::"text",
@@ -502,7 +516,8 @@ CREATE TABLE IF NOT EXISTS "public"."site_settings" (
     "custom_fonts" "jsonb" DEFAULT '[]'::"jsonb",
     "favicon_url" "text",
     "apple_icon_url" "text",
-    "logo_url" "text"
+    "logo_url" "text",
+    "enable_shoutbox" boolean DEFAULT true
 );
 
 
@@ -679,6 +694,11 @@ ALTER TABLE ONLY "public"."reading_progress"
 
 
 
+ALTER TABLE ONLY "public"."shoutbox"
+    ADD CONSTRAINT "shoutbox_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."site_settings"
     ADD CONSTRAINT "site_settings_pkey" PRIMARY KEY ("id");
 
@@ -763,10 +783,6 @@ CREATE INDEX "idx_stories_tags" ON "public"."stories" USING "gin" ("tags");
 
 
 
-CREATE OR REPLACE TRIGGER "chapter_version_trigger" BEFORE UPDATE OF "content_json" ON "public"."chapters" FOR EACH ROW EXECUTE FUNCTION "public"."handle_chapter_version"();
-
-
-
 CREATE OR REPLACE TRIGGER "on_profile_created_assign_role" BEFORE INSERT ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user_role"();
 
 
@@ -784,6 +800,10 @@ CREATE OR REPLACE TRIGGER "update_stories_updated_at" BEFORE UPDATE ON "public".
 
 
 CREATE OR REPLACE TRIGGER "update_volumes_updated_at" BEFORE UPDATE ON "public"."volumes" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "version_snapshot_trigger" AFTER UPDATE OF "content_draft" ON "public"."chapter_versions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_chapter_history_snapshot"();
 
 
 
@@ -887,6 +907,11 @@ ALTER TABLE ONLY "public"."reading_progress"
 
 
 
+ALTER TABLE ONLY "public"."shoutbox"
+    ADD CONSTRAINT "shoutbox_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."site_settings"
     ADD CONSTRAINT "site_settings_featured_story_id_fkey" FOREIGN KEY ("featured_story_id") REFERENCES "public"."stories"("id") ON DELETE SET NULL;
 
@@ -952,6 +977,12 @@ ALTER TABLE ONLY "public"."volumes"
 
 
 
+CREATE POLICY "Admin có toàn quyền quản lý" ON "public"."shoutbox" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
 CREATE POLICY "Admins can manage news" ON "public"."news" USING (("auth"."uid"() IN ( SELECT "profiles"."id"
    FROM "public"."profiles"
   WHERE ("profiles"."role" = 'admin'::"text"))));
@@ -962,7 +993,15 @@ CREATE POLICY "Admins can update settings" ON "public"."site_settings" USING (("
 
 
 
+CREATE POLICY "Ai cũng có thể xem tin nhắn" ON "public"."shoutbox" FOR SELECT USING (true);
+
+
+
 CREATE POLICY "Allow public insert/update for views via RPC" ON "public"."story_views_daily" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "Allow public select on published versions" ON "public"."chapter_versions" FOR SELECT USING (("status" = 'published'::"text"));
 
 
 
@@ -1097,6 +1136,10 @@ CREATE POLICY "Manage versions" ON "public"."chapter_versions" USING ((EXISTS ( 
 
 
 
+CREATE POLICY "Người dùng đã đăng nhập mới được nhắn tin" ON "public"."shoutbox" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Only admins can manage settings" ON "public"."site_settings" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
@@ -1155,6 +1198,10 @@ CREATE POLICY "Users can delete their own notifications" ON "public"."notificati
 
 
 CREATE POLICY "Users can follow stories" ON "public"."story_follows" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert their own activity logs" ON "public"."activity_logs" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -1246,6 +1293,9 @@ ALTER TABLE "public"."ratings" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."reading_progress" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."shoutbox" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."site_settings" ENABLE ROW LEVEL SECURITY;
 
 
@@ -1273,6 +1323,14 @@ ALTER TABLE "public"."volumes" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."shoutbox";
+
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
@@ -1552,9 +1610,9 @@ GRANT ALL ON FUNCTION "public"."gtrgm_union"("internal", "internal") TO "service
 
 
 
-GRANT ALL ON FUNCTION "public"."handle_chapter_version"() TO "anon";
-GRANT ALL ON FUNCTION "public"."handle_chapter_version"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."handle_chapter_version"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_chapter_history_snapshot"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_chapter_history_snapshot"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_chapter_history_snapshot"() TO "service_role";
 
 
 
@@ -1796,6 +1854,12 @@ GRANT ALL ON TABLE "public"."ratings" TO "service_role";
 GRANT ALL ON TABLE "public"."reading_progress" TO "anon";
 GRANT ALL ON TABLE "public"."reading_progress" TO "authenticated";
 GRANT ALL ON TABLE "public"."reading_progress" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."shoutbox" TO "anon";
+GRANT ALL ON TABLE "public"."shoutbox" TO "authenticated";
+GRANT ALL ON TABLE "public"."shoutbox" TO "service_role";
 
 
 

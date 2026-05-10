@@ -66,6 +66,9 @@ export async function updateChapter(id: string, updates: any) {
       notifyFollowers(data.story_id, data.title);
     });
   }
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`chapter:content:${id}`);
+  }
 
   revalidatePath(`/admin/editor/${id}`);
   if (data?.stories?.slug && data?.slug) {
@@ -166,8 +169,8 @@ export async function publishVersionTrack(versionId: string) {
 
   if (!version?.content_draft) throw new Error("Không có nội dung nháp để xuất bản");
 
-  // 2. Cập nhật vào content_json
-  const { error } = await supabase
+  // 2. Cập nhật vào content_json của chính version này
+  const { error: vError } = await supabase
     .from("chapter_versions")
     .update({ 
       content_json: version.content_draft,
@@ -176,11 +179,26 @@ export async function publishVersionTrack(versionId: string) {
     })
     .eq("id", versionId);
 
-  if (error) throw new Error(error.message);
+  if (vError) throw new Error(vError.message);
+
+  // 4. Xóa cache Redis (Xóa toàn bộ các bản cache của chương này)
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const cacheKeys = await redis.keys(`chapter:content:${version.chapter_id}*`);
+      if (cacheKeys.length > 0) {
+        await redis.del(...cacheKeys);
+      }
+    } catch (e) {
+      await redis.del(`chapter:content:${version.chapter_id}`);
+    }
+  }
 
   revalidatePath(`/admin/editor/${version.chapter_id}`);
+  // Không cần revalidatePath cho reader ở đây vì ta không thay đổi bảng chapters chính, 
+  // nhưng nếu cần ta vẫn để lại để đảm bảo cache được làm mới
   return { success: true };
 }
+
 
 export async function publishChapter(id: string, versionId?: string) {
   const supabase = await createClient();
@@ -197,48 +215,86 @@ export async function publishChapter(id: string, versionId?: string) {
     
     contentToPublish = version?.content_draft || version?.content_json;
 
-    // 1b. Cập nhật chính nó thành nội dung đã xuất bản
+    // 1b. Cập nhật chính nó thành nội dung đã xuất bản và đặt làm Primary
     if (versionId) {
-      await supabase.from("chapter_versions").update({ 
+      const { error: vError } = await supabase.from("chapter_versions").update({ 
         content_json: contentToPublish,
-        status: 'published' 
+        status: 'published',
+        is_primary: true
       }).eq("id", versionId);
+
+      if (vError) throw new Error(vError.message);
+      
+      // Gỡ primary của các bản khác
+      await supabase.from("chapter_versions")
+        .update({ is_primary: false })
+        .eq("chapter_id", id)
+        .neq("id", versionId);
+      // Cập nhật trạng thái chương chính và lấy dữ liệu để revalidate
+      const { data: chapter } = await supabase.from("chapters").update({ status: 'published' }).eq("id", id).select("*, stories(slug)").single();
+
+      // Xóa cache
+      if (process.env.UPSTASH_REDIS_REST_URL) {
+        try {
+          const cacheKeys = await redis.keys(`chapter:content:${id}*`);
+          if (cacheKeys.length > 0) {
+            await redis.del(...cacheKeys);
+          }
+        } catch (e) {
+          console.error("Redis clear error:", e);
+          await redis.del(`chapter:content:${id}`);
+        }
+      }
+
+      if (chapter) {
+        revalidatePath(`/truyen/${chapter.stories.slug}/${chapter.slug}`);
+      }
+      revalidatePath(`/admin/editor/${id}`);
+      return chapter;
     }
   } else {
-    // 2. Nếu không chỉ định, lấy từ draft
+    // 2. Nếu không chỉ định (Xuất bản bản gốc), lấy từ draft và cập nhật content_json chính
     const { data: chapter } = await supabase.from("chapters").select("content_draft").eq("id", id).single();
     contentToPublish = chapter?.content_draft;
-  }
+    
+    if (!contentToPublish) throw new Error("Không có nội dung để xuất bản");
 
-  if (!contentToPublish) throw new Error("Không có nội dung để xuất bản");
+    const { data, error } = await supabase
+      .from("chapters")
+      .update({
+        status: 'published',
+        content_status: 'published',
+        content_json: contentToPublish,
+        published_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .select("*, stories(slug)")
+      .single();
 
-  const { data, error } = await supabase
-    .from("chapters")
-    .update({
-      status: 'published',
-      content_json: contentToPublish, 
-      published_at: new Date().toISOString()
-    })
-    .eq("id", id)
-    .select("*, stories(slug)")
-    .single();
+    if (error) throw new Error(error.message);
 
-  if (error) {
-    console.error("Publish Error Details:", error);
-    throw new Error(`Failed to publish chapter: ${error.message}`);
-  }
+    // Khi xuất bản bản gốc, gỡ primary của các bản phụ
+    await supabase.from("chapter_versions")
+      .update({ is_primary: false })
+      .eq("chapter_id", id);
 
-  if (process.env.UPSTASH_REDIS_REST_URL) {
-    await redis.del(`chapter_content:${id}`);
-  }
-
-  revalidatePath(`/admin/editor/${id}`);
-  revalidatePath(`/admin/stories/${data.story_id}`);
-  if (data?.stories?.slug && data?.slug) {
+    // Xóa cache
+    if (process.env.UPSTASH_REDIS_REST_URL) {
+      try {
+        const cacheKeys = await redis.keys(`chapter:content:${id}*`);
+        if (cacheKeys.length > 0) {
+          await redis.del(...cacheKeys);
+        }
+      } catch (e) {
+        console.error("Redis clear error:", e);
+        await redis.del(`chapter:content:${id}`);
+      }
+    }
+    
     revalidatePath(`/truyen/${data.stories.slug}/${data.slug}`);
-    revalidatePath(`/truyen/${data.stories.slug}`);
+    revalidatePath(`/admin/editor/${id}`);
+    return data;
   }
-  return data;
 }
 
 /**
@@ -254,30 +310,60 @@ export async function updateVersionStatus(versionId: string, status: 'draft' | '
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Xóa cache Redis
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const { redis } = await import("@/lib/redis");
+      const cacheKeys = await redis.keys(`chapter:content:${data.chapter_id}*`);
+      if (cacheKeys.length > 0) {
+        await redis.del(...cacheKeys);
+      }
+    } catch (e) {
+      console.error("Redis clear error:", e);
+    }
+  }
+
   revalidatePath(`/admin/editor/${data.chapter_id}`);
   return data;
 }
 
 /**
- * Đặt một phiên bản làm bản mặc định (Primary)
+ * Cập nhật tên của một phiên bản
  */
-export async function setPrimaryVersion(versionId: string) {
+export async function updateVersionName(versionId: string, name: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chapter_versions")
+    .update({ name })
+    .eq("id", versionId)
+    .select("chapter_id")
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/editor/${data.chapter_id}`);
+  return { success: true };
+}
+
+/**
+ * Xóa một phiên bản
+ */
+export async function deleteVersion(versionId: string) {
   const supabase = await createClient();
   
-  // Lấy chapter_id trước
+  // Lấy chapter_id để revalidate
   const { data: vData } = await supabase
     .from("chapter_versions")
-    .select("chapter_id")
+    .select("chapter_id, is_primary")
     .eq("id", versionId)
     .single();
     
   if (!vData) throw new Error("Không tìm thấy phiên bản");
+  if (vData.is_primary) throw new Error("Không thể xóa phiên bản mặc định");
 
-  // Update logic: Cập nhật is_primary = true cho bản này
-  // (Trigger trong DB sẽ tự động gỡ is_primary của các bản khác)
   const { error } = await supabase
     .from("chapter_versions")
-    .update({ is_primary: true, status: 'published' }) // Primary thì nên là published luôn
+    .delete()
     .eq("id", versionId);
 
   if (error) throw new Error(error.message);
@@ -286,11 +372,97 @@ export async function setPrimaryVersion(versionId: string) {
   return { success: true };
 }
 
+/**
+ * Đặt một phiên bản làm bản mặc định (Primary)
+ */
+export async function setPrimaryVersion(versionId: string, chapterId?: string) {
+  const supabase = await createClient();
+  
+  if (versionId === "original" && chapterId) {
+    // Nếu chọn bản gốc làm mặc định -> Gỡ primary của TẤT CẢ các bản khác trong chapter_versions
+    const { error } = await supabase
+      .from("chapter_versions")
+      .update({ is_primary: false })
+      .eq("chapter_id", chapterId);
+      
+    if (error) throw new Error(error.message);
+    
+    if (process.env.UPSTASH_REDIS_REST_URL) {
+      await redis.del(`chapter:content:${chapterId}`);
+    }
+    
+    revalidatePath(`/admin/editor/${chapterId}`);
+    return { success: true };
+  }
+
+  // Lấy chapter_id cho phiên bản cụ thể
+  const { data: vData } = await supabase
+    .from("chapter_versions")
+    .select("chapter_id")
+    .eq("id", versionId)
+    .single();
+    
+  if (!vData) throw new Error("Không tìm thấy phiên bản");
+
+  // Đặt bản này là primary
+  const { error } = await supabase
+    .from("chapter_versions")
+    .update({ is_primary: true, status: 'published' })
+    .eq("id", versionId);
+
+  if (error) throw new Error(error.message);
+  
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`chapter:content:${vData.chapter_id}`);
+  }
+  
+  revalidatePath(`/admin/editor/${vData.chapter_id}`);
+  return { success: true };
+}
+
+/**
+ * Cập nhật trạng thái của chương chính (dành cho bản gốc)
+ */
+export async function updateChapterStatus(chapterId: string, status: 'published' | 'draft') {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chapters")
+    .update({ content_status: status })
+    .eq("id", chapterId);
+
+  if (error) throw new Error(error.message);
+  
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`chapter:content:${chapterId}`);
+  }
+  
+  revalidatePath(`/admin/editor/${chapterId}`);
+  return { success: true };
+}
+
+/**
+ * Lấy nội dung gốc được lưu trực tiếp trong bảng chapters
+ */
+export async function getChapterOriginalContent(chapterId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chapters")
+    .select("content_json, content_draft, content_status, updated_at")
+    .eq("id", chapterId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return {
+    ...data,
+    status: data.content_status // Map for UI compatibility
+  };
+}
+
 export async function getChapterVersions(chapterId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("chapter_versions")
-    .select("*, profiles!chapter_versions_edited_by_fkey(display_name)")
+    .select("*") // Bỏ join profiles để tránh lỗi RLS cho độc giả
     .eq("chapter_id", chapterId)
     .order("created_at", { ascending: false });
 
@@ -337,12 +509,12 @@ export async function getChapterBySlug(storySlug: string, chapterSlug: string) {
     .from("chapters")
     .select(`
       *,
+      content_status,
       stories!inner (id, title, slug, is_protected, is_private, author_id)
     `)
     .eq("slug", chapterSlug)
     .eq("stories.slug", storySlug)
     .eq("status", "published")
-    .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
     .single();
 
   if (cError || !chapter) return null;
@@ -350,18 +522,31 @@ export async function getChapterBySlug(storySlug: string, chapterSlug: string) {
   // 2. Lấy nội dung từ phiên bản Primary
   const { data: primaryVersion } = await supabase
     .from("chapter_versions")
-    .select("content_json")
+    .select("id, content_json")
     .eq("chapter_id", chapter.id)
     .eq("status", "published")
     .eq("is_primary", true)
-    .single();
+    .maybeSingle();
 
-  // 3. Fallback về content_json cũ nếu chưa migration hết
-  const content = primaryVersion?.content_json || chapter.content_json;
+  // 3. Kiểm tra sự tồn tại của nội dung
+  let content = primaryVersion?.content_json;
+  
+  // Nếu không có phiên bản mặc định đang công khai, thử lấy từ bản gốc (nếu bản gốc đang công khai)
+  if (!content && chapter.content_status === 'published') {
+    content = chapter.content_json;
+  }
+  
+  const contentExists = !!content;
+
+  // Security: Chỉ trả về content_json gốc nếu KHÔNG có bảo mật nào được bật
+  const isProtected = !!chapter.stories.is_protected || !!chapter.is_anti_copy || !!chapter.password_hash;
+  
+  const { content_json: _raw, content_draft: _draft, ...chapterMetadata } = chapter;
 
   const result = {
-    ...chapter,
-    content_json: content
+    ...chapterMetadata,
+    content_json: isProtected ? null : content,
+    has_content: contentExists
   };
 
   // Security Check: If private, verify access
@@ -514,7 +699,7 @@ export async function deleteChapter(id: string, storyId: string) {
   if (error) throw new Error(error.message);
 
   if (process.env.UPSTASH_REDIS_REST_URL) {
-    await redis.del(`chapter_content:${id}`);
+    await redis.del(`chapter:content:${id}`);
   }
 
   revalidatePath(`/admin/stories/${storyId}`);

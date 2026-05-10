@@ -110,8 +110,11 @@ export async function createComment(data: {
 
   // Notify the author
   if (chapter && chapter.stories) {
-    const story = chapter.stories;
+    // Supabase returns joined objects as arrays when using select syntax like stories(...)
+    const story = Array.isArray(chapter.stories) ? chapter.stories[0] : (chapter.stories as any);
     
+    if (!story) return comment;
+
     // 1. Notify Story Author
     if (story.author_id !== user.id) {
       await createNotification(

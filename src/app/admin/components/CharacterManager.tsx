@@ -117,7 +117,7 @@ export function CharacterManager({ storyId }: CharacterManagerProps) {
       </div>
 
       {isAdding && (
-        <form onSubmit={handleSubmit} className="p-8 bg-muted/20 rounded-[2.5rem] border-2 border-primary/20 space-y-6 relative overflow-hidden">
+        <div className="p-8 bg-muted/20 rounded-[2.5rem] border-2 border-primary/20 space-y-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4">
             <Button type="button" variant="ghost" size="icon" onClick={resetForm} className="rounded-full">
               <X className="w-4 h-4" />
@@ -153,7 +153,12 @@ export function CharacterManager({ storyId }: CharacterManagerProps) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ví dụ: Diệp Phàm"
                   className="h-12 bg-background rounded-xl font-bold"
-                  required
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSubmit(e as any);
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -167,14 +172,19 @@ export function CharacterManager({ storyId }: CharacterManagerProps) {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="ghost" onClick={resetForm} className="rounded-xl font-bold text-xs">Hủy</Button>
-                <Button disabled={isSubmitting} className="rounded-xl px-8 font-black text-xs uppercase tracking-widest">
+                <Button 
+                  type="button"
+                  disabled={isSubmitting} 
+                  onClick={(e) => handleSubmit(e as any)}
+                  className="rounded-xl px-8 font-black text-xs uppercase tracking-widest"
+                >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                   Lưu nhân vật
                 </Button>
               </div>
             </div>
           </div>
-        </form>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -8,9 +8,13 @@ import {
 } from "lucide-react";
 import { updateChapter } from "@/actions/chapters";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { HintEditorDialog } from "./HintEditorDialog";
 import slugify from "slugify";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ShieldAlert } from "lucide-react";
 
 interface EditorSettingsProps {
   chapter: any;
@@ -30,6 +34,7 @@ export function EditorSettings({ chapter, volumes, onUpdate }: EditorSettingsPro
     : ""
   );
   const [isPasswordEnabled, setIsPasswordEnabled] = useState(!!chapter.password_hash);
+  const [isAntiCopy, setIsAntiCopy] = useState(!!chapter.is_anti_copy);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleUpdateSettings = async () => {
@@ -41,7 +46,8 @@ export function EditorSettings({ chapter, volumes, onUpdate }: EditorSettingsPro
         volume_id: volumeId === "none" ? null : volumeId,
         scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
         password_hash: isPasswordEnabled ? (password || chapter.password_hash) : null,
-        password_hint: isPasswordEnabled ? passwordHint : null
+        password_hint: isPasswordEnabled ? passwordHint : null,
+        is_anti_copy: isAntiCopy
       };
       
       if (password) {
@@ -194,23 +200,37 @@ export function EditorSettings({ chapter, volumes, onUpdate }: EditorSettingsPro
 
         {/* Security Settings */}
         <div className="group space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground group-focus-within:text-primary transition-colors">
-              <div className="p-2 bg-muted/20 rounded-xl border border-border group-focus-within:border-primary/20">
-                <Lock className="w-3.5 h-3.5" />
+          <div className="space-y-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                  <Lock className="w-3 h-3 text-primary" />
+                  Bảo mật chương
+                </Label>
+                <p className="text-[10px] text-muted-foreground">Chỉ những người có mật mã mới có thể đọc chương này.</p>
               </div>
-              Bảo mật chương
-            </label>
-            <Switch 
-              checked={isPasswordEnabled} 
-              onCheckedChange={(checked) => {
-                setIsPasswordEnabled(checked);
-                if (!checked) {
-                  setPassword("");
-                }
-              }}
-              className="data-[state=checked]:bg-primary"
-            />
+              <Switch 
+                checked={isPasswordEnabled} 
+                onCheckedChange={(checked) => {
+                  setIsPasswordEnabled(checked);
+                  if (!checked) setPassword("");
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-primary/10">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                  <ShieldAlert className="w-3 h-3 text-amber-500" />
+                  Mã rác bảo vệ (Anti-Copy)
+                </Label>
+                <p className="text-[10px] text-muted-foreground">Tự động chèn nội dung vô hình để gây khó khăn cho việc sao chép trái phép.</p>
+              </div>
+              <Switch 
+                checked={isAntiCopy} 
+                onCheckedChange={setIsAntiCopy}
+              />
+            </div>
           </div>
           
           <div className={`relative pl-1 transition-all duration-500 ${!isPasswordEnabled ? 'opacity-30 blur-[1px] grayscale pointer-events-none' : 'opacity-100'}`}>
@@ -226,12 +246,20 @@ export function EditorSettings({ chapter, volumes, onUpdate }: EditorSettingsPro
             </p>
             
             <div className="pt-2 space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Gợi ý mật khẩu</label>
-              <Input 
-                value={passwordHint}
+            <div className="flex items-center justify-between px-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Gợi ý mật khẩu</label>
+              <HintEditorDialog 
+                initialValue={passwordHint} 
+                onSave={setPasswordHint} 
+                storyId={chapter.story_id}
+              />
+            </div>
+            <Textarea 
+                value={typeof passwordHint === 'string' ? passwordHint : (passwordHint ? "✨ Nội dung soạn thảo nâng cao (Bấm nút trên để chỉnh sửa)" : "")}
                 onChange={(e) => setPasswordHint(e.target.value)}
-                placeholder="Ví dụ: Tên nhân vật chính là gì?"
-                className="rounded-xl bg-muted/30 border-none font-bold h-12 text-sm focus:ring-4 ring-primary/10 transition-all"
+                placeholder="Ví dụ: Giải phương trình x² + 2x + 1 = 0..."
+                className={`rounded-xl bg-muted/30 border-none font-bold min-h-[100px] text-sm focus:ring-4 ring-primary/10 transition-all resize-none ${typeof passwordHint !== 'string' ? 'text-primary italic' : ''}`}
+                readOnly={typeof passwordHint !== 'string'}
               />
             </div>
             <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

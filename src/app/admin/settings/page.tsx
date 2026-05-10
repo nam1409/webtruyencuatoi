@@ -9,8 +9,8 @@ import { getSiteSettings, updateSiteSettings, updateMultipleSiteSettings } from 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Input } from "@base-ui/react";
 import { IconUploader } from "../components/IconUploader";
+import { Input } from "@/components/ui/input";
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);

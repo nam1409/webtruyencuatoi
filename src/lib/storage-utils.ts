@@ -5,10 +5,21 @@ export async function uploadBrandingAsset(file: File, path: string) {
   const supabase = createClient();
   
   try {
-    // 1. Nén ảnh và chuyển sang WebP để tối ưu
+    // 1. Nén ảnh và chuyển sang WebP để tối ưu dựa trên loại asset
+    let maxWidthOrHeight = 1024;
+    let maxSizeMB = 0.5;
+
+    if (path === 'favicon') {
+      maxWidthOrHeight = 64;
+      maxSizeMB = 0.05; // 50KB cho favicon là quá đủ
+    } else if (path === 'apple-icon') {
+      maxWidthOrHeight = 180;
+      maxSizeMB = 0.1; // 100KB cho apple icon
+    }
+
     const options = {
-      maxSizeMB: 0.5, // Tối đa 500KB cho logo/icon
-      maxWidthOrHeight: 1024,
+      maxSizeMB: maxSizeMB,
+      maxWidthOrHeight: maxWidthOrHeight,
       useWebWorker: true,
       fileType: "image/webp" as string
     };

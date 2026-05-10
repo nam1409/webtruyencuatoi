@@ -74,6 +74,10 @@ export default async function AdminHomepagePage() {
                 <p className="font-bold mb-1">Popular Stories</p>
                 <p className="text-muted-foreground">Những bộ truyện có lượt xem cao nhất.</p>
               </div>
+              <div className="p-3 rounded-lg border bg-muted/30">
+                <p className="font-bold mb-1">Shoutbox</p>
+                <p className="text-muted-foreground">Khung chat cộng đồng thời gian thực.</p>
+              </div>
             </CardContent>
           </Card>
         </div>

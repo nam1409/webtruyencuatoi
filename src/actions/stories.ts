@@ -45,7 +45,7 @@ export async function getStories() {
 
   // Combine and deduplicate
   const allStoriesRaw = [...(ownedStories || [])];
-  collabData?.forEach(item => {
+  collabData?.forEach((item: { stories: any[]; }) => {
     if (!item.stories) return;
     
     // Supabase might return an array or a single object depending on relationship types
@@ -240,7 +240,7 @@ export async function updateStory(id: string, updates: any) {
       .eq("story_id", id);
     
     if (chapters && chapters.length > 0) {
-      const keys = chapters.map(c => `chapter_content:${c.id}`);
+      const keys = chapters.map((c: { id: any; }) => `chapter_content:${c.id}`);
       await redis.del(...keys);
     }
   }
@@ -491,8 +491,29 @@ export async function getStoryAccessList(storyId: string) {
   return data;
 }
 
-export async function searchStories(query: string, genre?: string) {
+export async function searchStories(options: { 
+  query?: string, 
+  genre?: string, 
+  status?: string, 
+  minChapters?: number, 
+  maxChapters?: number, 
+  sortBy?: string 
+}) {
+  const { query, genre, status, minChapters, maxChapters, sortBy } = options;
+  const cacheKey = `stories:search:${JSON.stringify(options)}`;
+  
+  // Try cache
+  if (process.env.UPSTASH_REDIS_REST_URL && !query && (!genre || genre === "Tất cả") && !status && !minChapters && !maxChapters) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return cached as any[];
+    } catch (e) {
+      console.error("Redis cache error:", e);
+    }
+  }
+
   const supabase = await createClient();
+  const now = new Date().toISOString();
   
   let q = supabase
     .from("stories")
@@ -501,11 +522,9 @@ export async function searchStories(query: string, genre?: string) {
       profiles:author_id (display_name, avatar_url),
       chapters:chapters(count)
     `)
-    .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`);
+    .or(`scheduled_at.is.null,scheduled_at.lte."${now}"`);
 
   if (query) {
-    // Sử dụng Full-text Search của Postgres qua Supabase
-    // Lưu ý: Cần có index GIN trên title và description để đạt hiệu suất tốt nhất
     q = q.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
   }
 
@@ -513,15 +532,96 @@ export async function searchStories(query: string, genre?: string) {
     q = q.contains("genres", [genre]);
   }
 
-  const { data, error } = await q.order("created_at", { ascending: false });
+  if (status && status !== "Tất cả") {
+    q = q.eq("status", status === "Hoàn thành" ? "completed" : "ongoing");
+  }
+
+  // Sorting
+  if (sortBy === "Lượt xem") {
+    q = q.order("views_count_total", { ascending: false });
+  } else if (sortBy === "Chương nhiều") {
+    // Note: complex sorting on computed counts might need a separate field or RPC
+    // For now we'll sort by created_at and filter chapter_count on client if needed,
+    // or just use a default order.
+    q = q.order("created_at", { ascending: false });
+  } else {
+    q = q.order("created_at", { ascending: false });
+  }
+
+  const { data, error } = await q;
 
   if (error) {
     console.error("Search error:", error);
     return [];
   }
 
-  return data.map(s => ({
+  let result = (data || []).map((s: any) => ({
     ...s,
     chapter_count: s.chapters?.[0]?.count || 0
   }));
+
+  // Client-side filtering for chapter range (more reliable than complex SQL here)
+  if (minChapters !== undefined) {
+    result = result.filter((s: any) => s.chapter_count >= minChapters);
+  }
+  if (maxChapters !== undefined) {
+    result = result.filter((s: any) => s.chapter_count <= maxChapters);
+  }
+
+  if (sortBy === "Chương nhiều") {
+    result = result.sort((a: any, b: any) => b.chapter_count - a.chapter_count);
+  }
+
+  // Cache results
+  if (process.env.UPSTASH_REDIS_REST_URL && !query && (!genre || genre === "Tất cả") && !status && !minChapters && !maxChapters) {
+    try {
+      await redis.set(cacheKey, result, { ex: 300 });
+    } catch (e) {
+      console.error("Redis save error:", e);
+    }
+  }
+
+  return result;
+}
+
+export async function getRankings(type: "views" | "chapters" | "new" = "views", limit = 10) {
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  
+  let query = supabase
+    .from("stories")
+    .select(`
+      *,
+      profiles:author_id (display_name, avatar_url),
+      chapters:chapters(count)
+    `)
+    .or(`scheduled_at.is.null,scheduled_at.lte."${now}"`);
+
+  if (type === "views") {
+    query = query.order("views_count_total", { ascending: false });
+  } else if (type === "chapters") {
+    // Sorting by chapter count usually needs a separate column or RPC for performance
+    // For now we'll fetch and sort on client/server-side if result set is small
+    query = query.order("created_at", { ascending: false });
+  } else if (type === "new") {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  const { data, error } = await query.limit(limit * 2); // Fetch more for manual sorting if needed
+
+  if (error) {
+    console.error("Error fetching rankings:", error);
+    return [];
+  }
+
+  let result = (data || []).map((s: any) => ({
+    ...s,
+    chapter_count: s.chapters?.[0]?.count || 0
+  }));
+
+  if (type === "chapters") {
+    result = result.sort((a: any, b: any) => b.chapter_count - a.chapter_count);
+  }
+
+  return result.slice(0, limit);
 }

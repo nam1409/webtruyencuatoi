@@ -15,19 +15,22 @@ def simplify_supabase_sql(input_path, output_path):
     # Captures extensions
     extensions = re.findall(r'CREATE EXTENSION IF NOT EXISTS.*?;', content, re.IGNORECASE)
     
-    # Captures functions (including body between $$)
-    functions = re.findall(r'CREATE OR REPLACE FUNCTION.*?AS \$\$.*?\$\$[ \t\n]*?;', content, re.DOTALL | re.IGNORECASE)
+    # Captures functions (including body between $$ or $function$)
+    functions = re.findall(r'CREATE OR REPLACE FUNCTION.*?AS \$(?:function)?\$.*?\$(?:function)?\$[ \t\n]*?;', content, re.DOTALL | re.IGNORECASE)
     
     # Captures tables
     tables = re.findall(r'CREATE TABLE IF NOT EXISTS.*?\);', content, re.DOTALL | re.IGNORECASE)
-    # Some tables might not have IF NOT EXISTS in migration
     tables += re.findall(r'CREATE TABLE "public"\..*?\);', content, re.DOTALL | re.IGNORECASE)
     
+    # NEW: Captures column additions (CRITICAL for incremental migrations)
+    column_adds = re.findall(r'ALTER TABLE "public"\..*?ADD COLUMN.*?;', content, re.IGNORECASE)
+    
     # Captures constraints (Primary keys, Foreign keys, Uniques)
-    constraints = re.findall(r'ALTER TABLE ONLY "public"\..*?ADD CONSTRAINT.*?;', content, re.DOTALL | re.IGNORECASE)
+    constraints = re.findall(r'ALTER TABLE.*?ADD CONSTRAINT.*?;', content, re.DOTALL | re.IGNORECASE)
     
     # Captures indexes
-    indexes = re.findall(r'CREATE INDEX.*?;', content, re.IGNORECASE)
+    indexes = re.findall(r'CREATE UNIQUE INDEX.*?;', content, re.IGNORECASE)
+    indexes += re.findall(r'CREATE INDEX.*?;', content, re.IGNORECASE)
     
     # Captures triggers
     triggers = re.findall(r'CREATE OR REPLACE TRIGGER.*?;', content, re.IGNORECASE)
@@ -47,6 +50,7 @@ def simplify_supabase_sql(input_path, output_path):
             # Remove OWNER TO and GRANT noise inside blocks
             b = re.sub(r'ALTER.*?OWNER TO.*?;', '', b, flags=re.IGNORECASE)
             b = re.sub(r'GRANT ALL ON.*?TO.*?;', '', b, flags=re.IGNORECASE)
+            # Remove leading/trailing whitespace
             cleaned.append(b.strip())
         return [c for c in cleaned if c]
 
@@ -55,7 +59,7 @@ def simplify_supabase_sql(input_path, output_path):
     
     final_sql += "\n\n-- [1] EXTENSIONS\n" + "\n".join(clean(extensions))
     final_sql += "\n\n-- [2] FUNCTIONS\n" + "\n".join(clean(functions))
-    final_sql += "\n\n-- [3] TABLES\n" + "\n".join(clean(tables))
+    final_sql += "\n\n-- [3] TABLES & COLUMNS\n" + "\n".join(clean(tables)) + "\n" + "\n".join(clean(column_adds))
     final_sql += "\n\n-- [4] CONSTRAINTS\n" + "\n".join(clean(constraints))
     final_sql += "\n\n-- [5] INDEXES\n" + "\n".join(clean(indexes))
     final_sql += "\n\n-- [6] TRIGGERS\n" + "\n".join(clean(triggers))
@@ -95,6 +99,6 @@ WITH CHECK (
 
 # Run the conversion
 simplify_supabase_sql(
-    'supabase/migrations/20260508084849_remote_schema.sql', 
+    'supabase/migrations/20260510182548_remote_schema.sql', 
     'init_database.sql'
 )

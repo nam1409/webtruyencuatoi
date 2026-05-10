@@ -50,7 +50,7 @@ export async function exportStoryToEPUB(storyId: string) {
   
   const { data: story } = await supabase
     .from("stories")
-    .select("*, chapters(*)")
+    .select("*, chapters(*, chapter_versions(content_json, is_primary))")
     .eq("id", storyId)
     .single();
 
@@ -62,10 +62,16 @@ export async function exportStoryToEPUB(storyId: string) {
     title: story.title,
     author: story.author_name || "ZenStory Author",
     cover: story.cover_url || undefined,
-    content: sortedChapters.map((chap: any) => ({
-      title: chap.title,
-      content: tiptapToHtml(chap.content_json)
-    }))
+    content: sortedChapters.map((chap: any) => {
+      // Tìm phiên bản primary trong mảng chapter_versions (kết quả của join)
+      const primaryVersion = chap.chapter_versions?.find((v: any) => v.is_primary);
+      const content = primaryVersion?.content_json || chap.content_json;
+      
+      return {
+        title: chap.title,
+        content: tiptapToHtml(content)
+      };
+    })
   };
 
   const buffer = await epub(option, option.content);
@@ -77,7 +83,7 @@ export async function exportStoryToDOCX(storyId: string) {
   
   const { data: story } = await supabase
     .from("stories")
-    .select("*, chapters(*)")
+    .select("*, chapters(*, chapter_versions(content_json, is_primary))")
     .eq("id", storyId)
     .single();
 
@@ -104,6 +110,10 @@ export async function exportStoryToDOCX(storyId: string) {
 
   // Chapters
   sortedChapters.forEach((chap: any) => {
+    // Tìm phiên bản primary
+    const primaryVersion = chap.chapter_versions?.find((v: any) => v.is_primary);
+    const content = primaryVersion?.content_json || chap.content_json;
+
     sections.push({
       children: [
         new Paragraph({
@@ -111,7 +121,7 @@ export async function exportStoryToDOCX(storyId: string) {
           heading: HeadingLevel.HEADING_1,
           pageBreakBefore: true, // Page break before chapter
         }),
-        ...tiptapToDocxNodes(chap.content_json)
+        ...tiptapToDocxNodes(content)
       ],
     });
   });

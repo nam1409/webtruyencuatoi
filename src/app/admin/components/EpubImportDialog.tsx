@@ -140,6 +140,30 @@ export function EpubImportDialog() {
             StarterKit,
             TextAlign.configure({ types: ["heading", "paragraph"] }),
           ]);
+
+          // Tự động gán ID cho từng đoạn để hệ thống bình luận hoạt động
+          const addNodeIds = (node: any) => {
+            if (!node) return;
+            
+            const typesWithId = ['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'listItem'];
+            
+            if (typesWithId.includes(node.type)) {
+              if (!node.attrs) node.attrs = {};
+              if (!node.attrs['paragraph-id']) {
+                node.attrs['paragraph-id'] = typeof crypto !== 'undefined' && crypto.randomUUID 
+                  ? crypto.randomUUID() 
+                  : `import-${Math.random().toString(36).slice(2, 11)}`;
+              }
+            }
+
+            if (node.content && Array.isArray(node.content)) {
+              node.content.forEach(addNodeIds);
+            }
+          };
+
+          // console.log("EPUB Import: Gán ID cho các block...");
+          addNodeIds(jsonContent);
+          // console.log("EPUB Import: Đã gán xong ID. Preview block đầu tiên:", jsonContent.content?.[0]);
           
           await createChapter(newStory.id, chapterTitle, chapterSlug, null, jsonContent, "Auto Import");
         }

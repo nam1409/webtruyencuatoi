@@ -30,6 +30,26 @@ export async function getNews(limit = 5, category?: string) {
   return data;
 }
 
+export async function getNewsById(id: string) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from("news")
+    .select(`
+      *,
+      profiles:author_id (display_name, avatar_url)
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching news by id:", error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function createNews(data: {
   title: string;
   content: string;

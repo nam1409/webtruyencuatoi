@@ -44,20 +44,25 @@ export async function getPublicProfile(userId: string) {
   };
 }
 
-export async function updateProfile(data: { bio?: string, display_name?: string, avatar_url?: string, banner_url?: string, social_links?: any }) {
+export async function updateProfile(data: { bio?: string, display_name?: string, avatar_url?: string, banner_url?: string, website?: string, social_links?: any }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      ...data,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", user.id);
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        ...data,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
 
-  if (error) throw error;
-  return { success: true };
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating profile:", error);
+    return { success: false, error: error.message || "Có lỗi xảy ra khi cập nhật hồ sơ." };
+  }
 }

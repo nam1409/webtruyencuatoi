@@ -97,8 +97,17 @@ export default async function AllNewsPage() {
                       </div>
                     </div>
 
-                    <div className="text-sm leading-relaxed text-muted-foreground font-medium whitespace-pre-wrap">
-                      {item.content}
+                    <div className="text-sm leading-relaxed text-muted-foreground font-medium line-clamp-3">
+                      {item.content.replace(/<[^>]*>/g, ' ')}
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                      <Link 
+                        href={`/news/${item.id}`}
+                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary group/link"
+                      >
+                        Đọc chi tiết <ChevronRight className="w-3 h-3 transition-transform group-hover/link:translate-x-1" />
+                      </Link>
                     </div>
                   </div>
                 </div>

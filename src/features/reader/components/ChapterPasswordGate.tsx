@@ -3,14 +3,38 @@
 import React, { useState } from "react";
 import { Lock, ArrowRight, ShieldAlert } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { StaticContent } from "./StaticContent";
+import { useReader } from "../context/ReaderContext";
 
 interface ChapterPasswordGateProps {
   onUnlock: (password: string) => void;
   error?: string | null;
+  hint?: string | null;
+  chapterId: string;
 }
 
-export function ChapterPasswordGate({ onUnlock, error }: ChapterPasswordGateProps) {
+export function ChapterPasswordGate({ onUnlock, error, hint, chapterId }: ChapterPasswordGateProps) {
+  const { settings } = useReader();
   const [password, setPassword] = useState("");
+
+  const parsedHint = React.useMemo(() => {
+    if (!hint) return null;
+    if (typeof hint === 'string') {
+      try {
+        return JSON.parse(hint);
+      } catch (e) {
+        // Fallback for plain text or HTML
+        return {
+          type: 'doc',
+          content: [{ 
+            type: 'paragraph', 
+            content: [{ type: 'text', text: hint.replace(/<[^>]*>/g, '') }] 
+          }]
+        };
+      }
+    }
+    return hint;
+  }, [hint]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +48,7 @@ export function ChapterPasswordGate({ onUnlock, error }: ChapterPasswordGateProp
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-card border-2 border-primary/20 rounded-3xl p-8 shadow-2xl shadow-primary/5 text-center space-y-8"
+        className="max-w-md w-full bg-card border-2 border-primary/20 rounded-3xl p-8 shadow-2xl shadow-primary/5 text-center space-y-8 password-gate-container"
       >
         <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
           <Lock className="w-10 h-10 text-primary" />
@@ -37,7 +61,27 @@ export function ChapterPasswordGate({ onUnlock, error }: ChapterPasswordGateProp
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {parsedHint && (
+            <div className="bg-primary/5 border border-primary/10 rounded-3xl p-6 text-left animate-in fade-in slide-in-from-top-2 duration-500">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">Gợi ý từ tác giả</span>
+              </div>
+              <div className="prose-sm max-w-none opacity-90 pointer-events-auto">
+                <StaticContent 
+                  content={parsedHint} 
+                  showComments={false}
+                  chapterId={chapterId}
+                  settings={{
+                    ...settings,
+                    fontSize: settings.fontSize - 2 // Slightly smaller for hint
+                  }} 
+                />
+              </div>
+            </div>
+          )}
+
           <div className="relative group">
             <input
               type="password"

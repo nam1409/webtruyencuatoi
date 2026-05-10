@@ -14,6 +14,7 @@ import Typography from "@tiptap/extension-typography";
 import Mention from "@tiptap/extension-mention";
 import suggestion from "./suggestion";
 import { useEffect, useRef, useState } from "react";
+import { TextSelection, NodeSelection } from "@tiptap/pm/state";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   Bold, Italic, List, ListOrdered, Quote, Undo, Redo,
@@ -22,9 +23,27 @@ import {
   Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Minus, Eraser, Baseline, Highlighter, CheckSquare,
   IndentIncrease, IndentDecrease, Type as FontSizeIcon, Maximize, Minimize,
-  EyeOff, Info
+  EyeOff, Info, ChevronDown, Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Sigma,
+  Play, Film, Wind, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { 
+  Highlighter as HighlightIcon, 
+  Palette, 
+  Trash2, 
+  Copy, 
+  ExternalLink,
+  ChevronRight,
+  List as ListIconUI
+} from "lucide-react";
 
 // Declare custom commands for TypeScript
 declare module '@tiptap/core' {
@@ -37,6 +56,9 @@ declare module '@tiptap/core' {
       toggleAnnotation: () => ReturnType,
       unsetAnnotation: () => ReturnType,
       updateAnnotation: (note: string) => ReturnType,
+    },
+    zenEmbed: {
+      setEmbed: (options: { src: string, width?: string, height?: string }) => ReturnType,
     }
   }
 }
@@ -52,243 +74,16 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Highlight } from "@tiptap/extension-highlight";
 import { TaskList } from "@tiptap/extension-task-list";
 import { TaskItem } from "@tiptap/extension-task-item";
-import { Node, Extension, Mark, mergeAttributes } from "@tiptap/core";
+import { Subscript } from "@tiptap/extension-subscript";
+import { Superscript } from "@tiptap/extension-superscript";
+import { Mathematics } from "@tiptap/extension-mathematics";
+import "katex/dist/katex.min.css";
 import { NodeId } from "./NodeId";
+import { Spoiler, Annotation, FontSize, ZenImage as ZenImageExtension, BlockAnimation } from "./extensions";
+import { ZenEmbed } from "./ZenEmbedExtension";
+import { mergeAttributes } from "@tiptap/core";
 
-// Rebuild Image Node as zenImage to avoid any Tiptap internal conflicts
-const ZenImageExtension = Node.create({
-  name: 'zenImage',
-  group: 'block',
-  selectable: true,
-  draggable: true,
-  atom: true,
-
-  addAttributes() {
-    return {
-      src: {
-        default: null,
-      },
-      alt: {
-        default: null,
-      },
-      width: {
-        default: '100%',
-      },
-      align: {
-        default: 'center',
-      },
-      layout: {
-        default: 'block',
-      },
-    }
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'div.image-resizer-container',
-        getAttrs: element => ({
-          src: (element as HTMLElement).querySelector('img')?.getAttribute('src'),
-          width: (element as HTMLElement).style.width || (element as HTMLElement).getAttribute('data-width') || '100%',
-          align: (element as HTMLElement).getAttribute('data-align') || 'center',
-          layout: (element as HTMLElement).getAttribute('data-layout') || 'block',
-        })
-      },
-      { tag: 'img[src]' },
-    ]
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ['div', {
-      class: `image-resizer-container ${HTMLAttributes.layout} align-${HTMLAttributes.align}`,
-      style: `width: ${HTMLAttributes.width}`,
-      'data-align': HTMLAttributes.align,
-      'data-layout': HTMLAttributes.layout,
-      'data-width': HTMLAttributes.width,
-    }, ['img', mergeAttributes(HTMLAttributes, { style: 'width: 100%; display: block;' })]]
-  },
-
-  addCommands() {
-    return {
-      setImage: options => ({ commands }) => {
-        return commands.insertContent({
-          type: this.name,
-          attrs: options,
-        })
-      },
-    }
-  },
-
-  addNodeView() {
-    return ({ node, getPos, editor }) => {
-      const container = document.createElement('div');
-      container.className = `image-resizer-container ${node.attrs.layout} align-${node.attrs.align}`;
-      container.style.width = node.attrs.width;
-
-      const img = document.createElement('img');
-      img.src = node.attrs.src || '';
-      img.alt = node.attrs.alt || '';
-      img.style.width = '100%';
-      img.style.display = 'block';
-
-      const resizer = document.createElement('div');
-      resizer.className = 'resizer-handle';
-
-      let startX: number, startWidth: number;
-
-      resizer.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        startX = e.pageX;
-        startWidth = container.getBoundingClientRect().width;
-        let finalWidthPercent = node.attrs.width;
-        container.classList.add('is-resizing');
-
-        const onMouseMove = (moveEvent: MouseEvent) => {
-          const dx = moveEvent.pageX - startX;
-          const currentWidth = startWidth + dx;
-          const parentWidth = container.parentElement?.getBoundingClientRect().width || 800;
-          const currentUnit = node.attrs.width?.includes('px') ? 'px' : '%';
-
-          if (currentUnit === '%') {
-            const widthPercent = Math.min(100, Math.max(5, (currentWidth / parentWidth) * 100));
-            finalWidthPercent = `${widthPercent.toFixed(2)}%`;
-          } else {
-            const widthPx = Math.max(20, currentWidth);
-            finalWidthPercent = `${widthPx.toFixed(0)}px`;
-          }
-          container.style.width = finalWidthPercent;
-        };
-
-        const onMouseUp = () => {
-          container.classList.remove('is-resizing');
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
-          if (typeof getPos === 'function') {
-            const pos = getPos();
-            if (typeof pos === 'number') {
-              editor.view.dispatch(
-                editor.view.state.tr.setNodeMarkup(pos, undefined, {
-                  ...node.attrs,
-                  width: finalWidthPercent,
-                })
-              );
-            }
-          }
-        };
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-      });
-
-      container.appendChild(img);
-      container.appendChild(resizer);
-
-      return {
-        dom: container,
-        update: (updatedNode) => {
-          if (updatedNode.type.name !== 'zenImage') return false;
-          container.style.width = updatedNode.attrs.width;
-          container.className = `image-resizer-container ${updatedNode.attrs.layout} align-${updatedNode.attrs.align} ${container.classList.contains('is-selected') ? 'is-selected' : ''}`;
-          img.src = updatedNode.attrs.src || '';
-          img.alt = updatedNode.attrs.alt || '';
-          return true;
-        },
-        selectNode: () => container.classList.add('is-selected'),
-        deselectNode: () => container.classList.remove('is-selected'),
-      };
-    };
-  },
-});
-
-// Custom Font Size Extension
-const FontSize = Extension.create({
-  name: 'fontSize',
-  addOptions() {
-    return {
-      types: ['textStyle'],
-    }
-  },
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: element => element.style.fontSize,
-            renderHTML: attributes => {
-              if (!attributes.fontSize) {
-                return {}
-              }
-              return {
-                style: `font-size: ${attributes.fontSize}`,
-              }
-            },
-          },
-        },
-      },
-    ]
-  },
-  addCommands() {
-    return {
-      setFontSize: fontSize => ({ chain }) => {
-        return chain()
-          .setMark('textStyle', { fontSize })
-          .run()
-      },
-      unsetFontSize: () => ({ chain }) => {
-        return chain()
-          .setMark('textStyle', { fontSize: null })
-          .removeEmptyTextStyle()
-          .run()
-      },
-    }
-  },
-})
-
-const Spoiler = Mark.create({
-  name: 'spoiler',
-  addAttributes() { return {} },
-  parseHTML() { return [{ tag: 'span[data-type="spoiler"]' }, { tag: 'spoiler' }] },
-  renderHTML({ HTMLAttributes }) { return ['span', mergeAttributes(HTMLAttributes, { 'data-type': 'spoiler', class: 'spoiler-text' }), 0] },
-  addCommands() {
-    return {
-      toggleSpoiler: () => ({ commands }) => {
-        return commands.toggleMark('spoiler')
-      },
-    }
-  },
-});
-
-const Annotation = Mark.create({
-  name: 'annotation',
-  addAttributes() {
-    return {
-      note: {
-        default: null,
-        parseHTML: element => element.getAttribute('data-note'),
-        renderHTML: attributes => ({ 'data-note': attributes.note }),
-      }
-    };
-  },
-  parseHTML() { return [{ tag: 'span[data-type="annotation"]' }] },
-  renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes(HTMLAttributes, {
-      'data-type': 'annotation',
-      class: 'annotation-text',
-      title: HTMLAttributes['data-note']
-    }), 0]
-  },
-  addCommands() {
-    return {
-      setAnnotation: (note: string) => ({ commands }) => commands.setMark('annotation', { note }),
-      toggleAnnotation: () => ({ commands }) => commands.toggleMark('annotation'),
-      unsetAnnotation: () => ({ commands }) => commands.unsetMark('annotation'),
-      updateAnnotation: (note: string) => ({ commands }) => commands.updateAttributes('annotation', { note }),
-    }
-  }
-});
+// Custom components will be imported from extensions.ts
 
 const AnnotationMenu = ({ editor }: { editor: any }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -351,23 +146,202 @@ const AnnotationMenu = ({ editor }: { editor: any }) => {
   );
 };
 
+const FormattingBubbleMenu = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
+
+  return (
+    <div className="flex items-center gap-1 bg-zinc-900/90 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/5">
+      <div className="flex items-center gap-0.5 px-1 border-r border-white/10 mr-1">
+        <button
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          className={cn(
+            "p-2 rounded-xl transition-all duration-200 hover:bg-white/10",
+            editor.isActive("bold") ? "text-primary bg-white/10 shadow-inner" : "text-zinc-400"
+          )}
+          title="In đậm (Ctrl+B)"
+        >
+          <Bold className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          className={cn(
+            "p-2 rounded-xl transition-all duration-200 hover:bg-white/10",
+            editor.isActive("italic") ? "text-primary bg-white/10 shadow-inner" : "text-zinc-400"
+          )}
+          title="In nghiêng (Ctrl+I)"
+        >
+          <Italic className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          className={cn(
+            "p-2 rounded-xl transition-all duration-200 hover:bg-white/10",
+            editor.isActive("underline") ? "text-primary bg-white/10 shadow-inner" : "text-zinc-400"
+          )}
+          title="Gạch chân (Ctrl+U)"
+        >
+          <UnderlineIcon className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={() => (editor.commands as any).toggleSpoiler()}
+          className={cn(
+            "p-2 rounded-xl transition-all duration-200 hover:bg-white/10 flex items-center gap-2 px-3",
+            editor.isActive("spoiler") ? "text-amber-400 bg-amber-400/10 shadow-inner" : "text-zinc-400"
+          )}
+          title="Nội dung Spoiler"
+        >
+          <EyeOff className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Spoiler</span>
+        </button>
+
+        <button
+          onClick={() => {
+            if (editor.isActive("annotation")) {
+              (editor.commands as any).unsetAnnotation();
+            } else {
+              (editor.commands as any).setAnnotation("");
+            }
+          }}
+          className={cn(
+            "p-2 rounded-xl transition-all duration-200 hover:bg-white/10 flex items-center gap-2 px-3",
+            editor.isActive("annotation") ? "text-primary bg-primary/10 shadow-inner" : "text-zinc-400"
+          )}
+          title="Thêm ghi chú"
+        >
+          <Info className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Ghi chú</span>
+        </button>
+      </div>
+
+      <div className="w-px h-6 bg-white/10 mx-1" />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={cn(
+              "p-2 rounded-xl transition-all duration-200 hover:bg-white/10 flex items-center gap-2 px-3",
+              editor.getAttributes('paragraph').animation || editor.getAttributes('heading').animation 
+                ? "text-purple-400 bg-purple-400/10 shadow-inner" 
+                : "text-zinc-400"
+            )}
+            title="Hiệu ứng chuyển động"
+          >
+            <Film className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Hiệu ứng</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-48 bg-zinc-900 border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-xl">
+          <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 px-3 py-2">Chọn hiệu ứng</DropdownMenuLabel>
+          <DropdownMenuItem 
+            onClick={() => (editor.commands as any).unsetAnimation()}
+            className="rounded-xl py-2 px-3 focus:bg-white/10 text-zinc-400 focus:text-white cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Eraser className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold">Không có</span>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-white/5" />
+          {[
+            { id: 'fade', label: 'Hiện dần', icon: Wind },
+            { id: 'slide-up', label: 'Trượt lên', icon: ChevronRight },
+            { id: 'slide-down', label: 'Trượt xuống', icon: ChevronDown },
+            { id: 'zoom-in', label: 'Phóng to', icon: Maximize },
+            { id: 'blur-in', label: 'Mờ dần', icon: Zap },
+          ].map((anim) => (
+            <DropdownMenuItem 
+              key={anim.id}
+              onClick={() => (editor.commands as any).setAnimation(anim.id)}
+              className={cn(
+                "rounded-xl py-2 px-3 focus:bg-primary/20 focus:text-primary cursor-pointer mb-1",
+                (editor.getAttributes('paragraph').animation === anim.id || editor.getAttributes('heading').animation === anim.id) 
+                  ? "bg-primary/10 text-primary" 
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <anim.icon className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold">{anim.label}</span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="w-px h-6 bg-white/10 mx-1" />
+
+      <button
+        onClick={() => editor.chain().focus().unsetAllMarks().run()}
+        className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+        title="Xóa định dạng"
+      >
+        <Eraser className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+const FloatingActionMenu = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
+
+  return (
+    <div className="flex items-center gap-1 bg-background/80 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-1 animate-in fade-in slide-in-from-left-2 duration-300">
+      <button
+        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all flex items-center gap-2 pr-3"
+      >
+        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <Heading2 className="w-3.5 h-3.5" />
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-widest">H2</span>
+      </button>
+      
+      <button
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all flex items-center gap-2 pr-3"
+      >
+        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <List className="w-3.5 h-3.5" />
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-widest">List</span>
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all flex items-center gap-2 pr-3"
+      >
+        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <Quote className="w-3.5 h-3.5" />
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-widest">Quote</span>
+      </button>
+    </div>
+  );
+};
+
 interface TiptapEditorProps {
   initialContent?: any;
   onChange: (content: any) => void;
+  onHtmlChange?: (html: string) => void;
   isSaving?: boolean;
-  storyId: string;
+  storyId?: string;
   isReadOnly?: boolean;
 }
 
-export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isReadOnly = false }: TiptapEditorProps) {
+export function TiptapEditor({ initialContent, onChange, onHtmlChange, isSaving, storyId, isReadOnly = false }: TiptapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [characters, setCharacters] = useState<any[]>([]);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [showEmbedDialog, setShowEmbedDialog] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState("");
 
   useEffect(() => {
-    getCharactersByStory(storyId).then(setCharacters);
+    getCharactersByStory(storyId as string).then(setCharacters);
   }, [storyId]);
 
   const charactersRef = useRef(characters);
@@ -425,6 +399,7 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
         },
       }),
       ZenImageExtension,
+      ZenEmbed,
       Mention.configure({
         HTMLAttributes: {
           class: "character-mention text-primary font-black cursor-pointer hover:underline decoration-2 underline-offset-4 transition-all",
@@ -434,19 +409,28 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
       Mention.extend({
         name: "slashCommand",
       }).configure({
+        suggestion: {
+          ...slashSuggestion,
+          char: "/",
+        },
         HTMLAttributes: {
           class: "hidden",
         },
-        suggestion: slashSuggestion,
         renderText: () => "",
       }),
       NodeId,
+      BlockAnimation,
+      Subscript,
+      Superscript,
+      Mathematics,
     ],
     content: initialContent,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const json = editor.getJSON();
-      // console.log('Tiptap JSON Update:', json); // Dòng này giúp bạn soi dữ liệu ở Console
+      const html = editor.getHTML();
       onChange(json);
+      if (onHtmlChange) onHtmlChange(html);
     },
     editorProps: {
       attributes: {
@@ -456,18 +440,9 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
         ),
       },
     },
-    editable: !isReadOnly,
-    immediatelyRender: false,
+    editable: !isReadOnly
   }, []); // Only init once!
 
-  const handleSetLink = (url: string) => {
-    if (!editor) return;
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -496,12 +471,70 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
     }
   }, [editor, initialContent]);
 
+  useEffect(() => {
+    if (editor) {
+      (editor as any).openEmbedDialog = () => {
+        setEmbedUrl("");
+        setShowEmbedDialog(true);
+      };
+    }
+  }, [editor]);
+
+  const handleSetLink = (url: string) => {
+    if (url) {
+      editor!.chain().focus().setLink({ href: url }).run();
+    } else {
+      editor!.chain().focus().unsetLink().run();
+    }
+    setShowLinkDialog(false);
+  };
+
+  const handleSetEmbed = (url: string) => {
+    if (url && editor) {
+      let finalUrl = url;
+      
+      // Robust YouTube ID extraction
+      const youtubeRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(youtubeRegex);
+      
+      if (match && match[2].length === 11) {
+        const videoId = match[2];
+        finalUrl = `https://www.youtube.com/embed/${videoId}`;
+      } else if (url.includes('<iframe')) {
+        // If user pasted a whole iframe, try to extract src
+        const srcMatch = url.match(/src=["']([^"']+)["']/);
+        if (srcMatch) finalUrl = srcMatch[1];
+      }
+      
+      (editor.commands as any).setEmbed({ src: finalUrl });
+    }
+    setShowEmbedDialog(false);
+    setEmbedUrl("");
+  };
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className="w-full transition-all duration-500">
+      {/* Floating Menu for Blocks */}
+      {editor && (
+        <FloatingMenu
+          editor={editor}
+          options={{
+            duration: 200,
+            placement: 'right',
+          } as any}
+          shouldShow={({ editor }) => {
+            // Only show on empty paragraph lines
+            return editor.isActive('paragraph') && editor.state.selection.empty && editor.state.doc.resolve(editor.state.selection.from).parent.content.size === 0;
+          }}
+        >
+          <FloatingActionMenu editor={editor} />
+        </FloatingMenu>
+      )}
+
       {/* Annotation Bubble Menu */}
       {editor && (
         <BubbleMenu
@@ -520,56 +553,94 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
         </BubbleMenu>
       )}
 
+      {/* Formatting Bubble Menu */}
+      {editor && (
+        <BubbleMenu
+          editor={editor}
+          options={{
+            placement: 'top'
+          }}
+          shouldShow={({ editor, from, to }) => {
+            // Only show if it's a TEXT selection and NOT an empty selection
+            const isTextSelection = editor.state.selection instanceof TextSelection;
+            const isNodeSelection = editor.state.selection instanceof NodeSelection;
+            
+            return isTextSelection && 
+                   from !== to && 
+                   !editor.isActive('annotation') && 
+                   !isNodeSelection;
+          }}
+        >
+          <FormattingBubbleMenu editor={editor} />
+        </BubbleMenu>
+      )}
+
       {/* Editor Toolbar */}
       {!isReadOnly && (
-        <div className="sticky top-0 flex flex-wrap items-center gap-2 p-2 bg-background border-b border-border/50 shadow-sm">
+        <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 p-2 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-300">
         {/* Style Dropdown */}
-        <div className="flex items-center gap-0.5 bg-muted/30 p-1 rounded-xl">
-          <select
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === "p") editor.chain().focus().setParagraph().run();
-              else if (val.startsWith("h")) {
-                const level = parseInt(val[1]) as 1 | 2 | 3 | 4;
-                editor.chain().focus().setHeading({ level }).run();
-              }
-            }}
-            value={
-              editor.isActive("heading", { level: 1 }) ? "h1" :
-                editor.isActive("heading", { level: 2 }) ? "h2" :
-                  editor.isActive("heading", { level: 3 }) ? "h3" :
-                    editor.isActive("heading", { level: 4 }) ? "h4" : "p"
-            }
-            className="bg-transparent text-[10px] font-black uppercase tracking-widest px-2 py-1 focus:outline-none cursor-pointer hover:bg-background rounded-lg transition-all"
-          >
-            <option value="p">Văn bản thường</option>
-            <option value="h1">Tiêu đề chính</option>
-            <option value="h2">Tiêu đề chương</option>
-            <option value="h3">Phân đoạn 1</option>
-            <option value="h4">Phân đoạn 2</option>
-          </select>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 hover:bg-muted/50 rounded-xl transition-all group">
+              <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground/80">
+                {editor.isActive("heading", { level: 1 }) ? "Tiêu đề chính" :
+                 editor.isActive("heading", { level: 2 }) ? "Tiêu đề chương" :
+                 editor.isActive("heading", { level: 3 }) ? "Phân đoạn 1" :
+                 editor.isActive("heading", { level: 4 }) ? "Phân đoạn 2" : "Văn bản thường"}
+              </span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48 rounded-2xl p-2 shadow-2xl border-border/40 bg-background/95 backdrop-blur-xl">
+            <DropdownMenuItem 
+              onClick={() => editor.chain().focus().setParagraph().run()}
+              className="rounded-xl py-2 px-3 focus:bg-primary/5 focus:text-primary cursor-pointer"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest">Văn bản thường</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              className="rounded-xl py-2 px-3 focus:bg-primary/5 focus:text-primary cursor-pointer"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest text-lg">Tiêu đề chính</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              className="rounded-xl py-2 px-3 focus:bg-primary/5 focus:text-primary cursor-pointer"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest text-base">Tiêu đề chương</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+              className="rounded-xl py-2 px-3 focus:bg-primary/5 focus:text-primary cursor-pointer"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest">Phân đoạn 1</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Font Size Dropdown */}
-        <div className="flex items-center gap-0.5 bg-muted/30 p-1 rounded-xl">
-          <select
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === "default") (editor.commands as any).unsetFontSize();
-              else (editor.commands as any).setFontSize(val);
-            }}
-            className="bg-transparent text-[10px] font-black px-2 py-1 focus:outline-none cursor-pointer hover:bg-background rounded-lg transition-all"
-          >
-            <option value="default">Size</option>
-            <option value="12px">12</option>
-            <option value="14px">14</option>
-            <option value="16px">16</option>
-            <option value="18px">18</option>
-            <option value="20px">20</option>
-            <option value="24px">24</option>
-            <option value="32px">32</option>
-          </select>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 hover:bg-muted/50 rounded-xl transition-all group">
+              <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground/80">
+                Size
+              </span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-24 rounded-2xl p-2 shadow-2xl border-border/40 bg-background/95 backdrop-blur-xl h-64 overflow-y-auto custom-scrollbar">
+            {['12px', '14px', '16px', '18px', '20px', '24px', '32px'].map((size) => (
+              <DropdownMenuItem 
+                key={size}
+                onClick={() => (editor.commands as any).setFontSize(size)}
+                className="rounded-xl py-2 px-3 focus:bg-primary/5 focus:text-primary cursor-pointer"
+              >
+                <span className="text-[10px] font-black">{size.replace('px', '')}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="w-px h-6 bg-border/50 mx-0.5" />
 
@@ -602,6 +673,27 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
             title="Gạch ngang"
           >
             <Strikethrough className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleSubscript().run()}
+            className={`p-2 rounded-lg hover:bg-background transition-all ${editor.isActive("subscript") ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}
+            title="Chỉ số dưới"
+          >
+            <SubscriptIcon className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            className={`p-2 rounded-lg hover:bg-background transition-all ${editor.isActive("superscript") ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}
+            title="Chỉ số trên"
+          >
+            <SuperscriptIcon className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => (editor.commands as any).toggleMathematics()}
+            className={`p-2 rounded-lg hover:bg-background transition-all ${editor.isActive("mathematics") ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}
+            title="Công thức Toán học (LaTeX)"
+          >
+            <Sigma className="w-4 h-4" />
           </button>
           <button
             onClick={() => (editor.commands as any).toggleSpoiler()}
@@ -750,6 +842,16 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
             title="Chèn liên kết"
           >
             <LinkIcon className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              setEmbedUrl("");
+              setShowEmbedDialog(true);
+            }}
+            className="p-2 rounded-lg hover:bg-background text-muted-foreground transition-all"
+            title="Nhúng nội dung (YouTube, SoundCloud...)"
+          >
+            <Play className="w-4 h-4" />
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -911,6 +1013,28 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
                 <Quote className="w-3.5 h-3.5" />
               </button>
             </BubbleMenu>
+
+            {/* Formatting Bubble Menu */}
+            {editor && (
+              <BubbleMenu
+                editor={editor}
+                options={{
+                  placement: 'top'
+                }}
+                shouldShow={({ editor, from, to }) => {
+                  // Only show if it's a TEXT selection and NOT an empty selection
+                  const isTextSelection = editor.state.selection instanceof TextSelection;
+                  const isNodeSelection = editor.state.selection instanceof NodeSelection;
+                  
+                  return isTextSelection && 
+                         from !== to && 
+                         !editor.isActive('annotation') && 
+                         !isNodeSelection;
+                }}
+              >
+                <FormattingBubbleMenu editor={editor} />
+              </BubbleMenu>
+            )}
           </>
         )}
         <EditorContent editor={editor} />
@@ -1004,6 +1128,16 @@ export function TiptapEditor({ initialContent, onChange, isSaving, storyId, isRe
         defaultValue={linkUrl}
         onConfirm={handleSetLink}
         label="Đường dẫn URL"
+      />
+      <PromptDialog
+        open={showEmbedDialog}
+        onOpenChange={setShowEmbedDialog}
+        title="Nhúng nội dung"
+        description="Dán mã nhúng Iframe hoặc đường dẫn YouTube, SoundCloud, Spotify vào đây."
+        placeholder="https://..."
+        defaultValue={embedUrl}
+        onConfirm={handleSetEmbed}
+        label="Mã nhúng / URL"
       />
     </div>
   );
