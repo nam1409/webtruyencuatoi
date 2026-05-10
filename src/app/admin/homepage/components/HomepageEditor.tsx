@@ -312,7 +312,7 @@ function SortableSection({
                       value={section.type}
                       onChange={(e) => updateSection(section.id, { type: e.target.value as any })}
                       className="text-[10px] font-black uppercase tracking-widest bg-muted/50 border-none rounded-full px-3 py-1 outline-none cursor-pointer hover:bg-muted transition-colors"
-                      disabled={section.type === 'hero'}
+                      // disabled={section.type === 'hero'}
                     >
                       <option value="latest">Mới cập nhật</option>
                       <option value="popular">Phổ biến</option>
