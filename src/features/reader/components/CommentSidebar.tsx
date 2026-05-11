@@ -36,7 +36,7 @@ export function CommentSidebar({
   const rootComments = initialComments.filter(c => {
     const isRoot = !c.parent_id;
     if (paragraphId === "general") return isRoot && c.paragraph_id === null;
-    return isRoot && c.paragraph_id === paragraphId;
+    return isRoot && String(c.paragraph_id) === String(paragraphId);
   });
 
   const getReplies = (parentId: string) => {

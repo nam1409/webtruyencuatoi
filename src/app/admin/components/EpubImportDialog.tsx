@@ -104,73 +104,70 @@ export function EpubImportDialog() {
 
       setStatus(`Bắt đầu nhập ${spineItems.length} chương...`);
       
-      // 5. Import Chapters
-      for (let i = 0; i < spineItems.length; i++) {
-        const href = spineItems[i];
-        const fullPath = opfDir + href;
-        const chapterHtml = await zip.file(fullPath)?.async("string");
+      // 5. Import Chapters with concurrency to speed up
+      const CHUNK_SIZE = 5; // Nhập 5 chương cùng lúc
+      for (let i = 0; i < spineItems.length; i += CHUNK_SIZE) {
+        const chunk = spineItems.slice(i, i + CHUNK_SIZE);
+        
+        await Promise.all(chunk.map(async (href, index) => {
+          const currentIndex = i + index;
+          const fullPath = opfDir + href;
+          const chapterHtml = await zip.file(fullPath)?.async("string");
 
-        if (chapterHtml) {
-          const chapterDoc = parser.parseFromString(chapterHtml, "text/html");
-          
-          // 1. Extract Title: Use TOC first, then headings, then <title>
-          let chapterTitle = tocMap[href] || 
-                             chapterDoc.querySelector("h1, h2, h3")?.textContent || 
-                             chapterDoc.querySelector("title")?.textContent || 
-                             "";
-          
-          // Clean up title if it matches book title or is empty
-          if (chapterTitle === title || !chapterTitle.trim()) {
-            chapterTitle = `Chương ${i + 1}`;
-          }
-          
-          const chapterSlug = slugify(chapterTitle, { lower: true, strict: true }) + `-${i + 1}`;
-          
-          const body = chapterDoc.querySelector("body");
-          
-          // Clean up redundant headers
-          const firstH1 = body?.querySelector("h1, h2");
-          if (firstH1 && (firstH1.textContent?.includes(chapterTitle) || chapterTitle.includes(firstH1.textContent || ""))) {
-            firstH1.remove();
-          }
-
-          const htmlContent = body?.innerHTML || "";
-          
-          const jsonContent = generateJSON(htmlContent, [
-            StarterKit,
-            TextAlign.configure({ types: ["heading", "paragraph"] }),
-          ]);
-
-          // Tự động gán ID cho từng đoạn để hệ thống bình luận hoạt động
-          const addNodeIds = (node: any) => {
-            if (!node) return;
+          if (chapterHtml) {
+            const chapterDoc = parser.parseFromString(chapterHtml, "text/html");
             
-            const typesWithId = ['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'listItem'];
+            let chapterTitle = tocMap[href] || 
+                               chapterDoc.querySelector("h1, h2, h3")?.textContent || 
+                               chapterDoc.querySelector("title")?.textContent || 
+                               "";
             
-            if (typesWithId.includes(node.type)) {
-              if (!node.attrs) node.attrs = {};
-              if (!node.attrs['paragraph-id']) {
-                node.attrs['paragraph-id'] = typeof crypto !== 'undefined' && crypto.randomUUID 
-                  ? crypto.randomUUID() 
-                  : `import-${Math.random().toString(36).slice(2, 11)}`;
+            if (chapterTitle === title || !chapterTitle.trim()) {
+              chapterTitle = `Chương ${currentIndex + 1}`;
+            }
+            
+            const chapterSlug = slugify(chapterTitle, { lower: true, strict: true }) + `-${currentIndex + 1}`;
+            const body = chapterDoc.querySelector("body");
+            
+            const firstH1 = body?.querySelector("h1, h2");
+            if (firstH1 && (firstH1.textContent?.includes(chapterTitle) || chapterTitle.includes(firstH1.textContent || ""))) {
+              firstH1.remove();
+            }
+
+            const htmlContent = body?.innerHTML || "";
+            
+            const jsonContent = generateJSON(htmlContent, [
+              StarterKit,
+              TextAlign.configure({ types: ["heading", "paragraph"] }),
+            ]);
+
+            // Tự động gán ID ngẫu nhiên cho từng block
+            const addNodeIds = (node: any) => {
+              if (!node) return;
+              const typesWithId = ['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'listItem'];
+              
+              if (typesWithId.includes(node.type)) {
+                if (!node.attrs) node.attrs = {};
+                if (!node.attrs['paragraph-id']) {
+                  node.attrs['paragraph-id'] = typeof crypto !== 'undefined' && crypto.randomUUID 
+                    ? crypto.randomUUID() 
+                    : Math.random().toString(36).slice(2, 11);
+                }
               }
-            }
 
-            if (node.content && Array.isArray(node.content)) {
-              node.content.forEach(addNodeIds);
-            }
-          };
+              if (node.content && Array.isArray(node.content)) {
+                node.content.forEach(addNodeIds);
+              }
+            };
 
-          // console.log("EPUB Import: Gán ID cho các block...");
-          addNodeIds(jsonContent);
-          // console.log("EPUB Import: Đã gán xong ID. Preview block đầu tiên:", jsonContent.content?.[0]);
-          
-          await createChapter(newStory.id, chapterTitle, chapterSlug, null, jsonContent, "Auto Import");
-        }
+            addNodeIds(jsonContent);
+            await createChapter(newStory.id, chapterTitle, chapterSlug, null, jsonContent, "Auto Import");
+          }
+        }));
 
-        const p = 10 + ((i + 1) / spineItems.length) * 90;
+        const p = 10 + (Math.min(i + CHUNK_SIZE, spineItems.length) / spineItems.length) * 90;
         setProgress(Math.round(p));
-        setStatus(`Đang nhập chương ${i + 1}/${spineItems.length}: ${chapterHtml ? 'Xong' : 'Lỗi'}`);
+        setStatus(`Đang nhập chương ${Math.min(i + CHUNK_SIZE, spineItems.length)}/${spineItems.length}...`);
       }
 
       toast.success("Đã nhập truyện thành công!");
