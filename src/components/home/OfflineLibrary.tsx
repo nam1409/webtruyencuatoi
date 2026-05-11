@@ -8,6 +8,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
+import { OptimizedImage } from "../ui/OptimizedImage";
 
 export function OfflineLibrary() {
   const [stories, setStories] = useState<any[]>([]);
@@ -88,7 +89,7 @@ export function OfflineLibrary() {
                   {/* Cover Image */}
                   <div className="w-24 h-32 rounded-2xl bg-muted overflow-hidden border border-border/50 flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform duration-500">
                     {story.coverUrl ? (
-                      <img src={story.coverUrl} className="w-full h-full object-cover" alt={story.title} />
+                      <OptimizedImage src={story.coverUrl} className="w-full h-full object-cover" alt={story.title} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 italic text-[8px] uppercase font-black">No Cover</div>
                     )}

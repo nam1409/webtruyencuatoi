@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export default async function AdminCommentsPage({
   searchParams,
@@ -56,7 +57,7 @@ export default async function AdminCommentsPage({
                   <div className="flex flex-row md:flex-col items-center md:items-start gap-4 md:w-48 shrink-0">
                     <div className="w-16 h-16 rounded-[1.5rem] bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary font-black text-2xl overflow-hidden shadow-lg">
                       {comment.profiles?.avatar_url ? (
-                        <img src={comment.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                        <OptimizedImage src={comment.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
                         comment.profiles?.display_name?.charAt(0).toUpperCase() || "U"
                       )}

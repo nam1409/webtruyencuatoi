@@ -18,6 +18,7 @@ import { CharacterManager } from "./CharacterManager";
 import { VolumeManager } from "./VolumeManager";
 import { toast } from "sonner";
 import slugify from "slugify";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface StoryFormProps {
   initialData?: any;
@@ -201,7 +202,7 @@ export function StoryForm({ initialData, isEditing = false, availableGenres = []
             >
               {coverUrl ? (
                 <>
-                  <img src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+                  <OptimizedImage src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                     <Button variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white rounded-full text-xs">
                       <ImagePlus className="w-4 h-4 mr-2" /> Đổi ảnh
@@ -574,7 +575,7 @@ export function StoryForm({ initialData, isEditing = false, availableGenres = []
                 >
                   {metadata.qr_code_url ? (
                     <>
-                      <img src={metadata.qr_code_url} alt="QR Code" className="w-full h-full object-contain p-6" />
+                      <OptimizedImage src={metadata.qr_code_url} alt="QR Code" className="w-full h-full object-contain p-6" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
                         <Button variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white rounded-full">
                           Đổi mã QR

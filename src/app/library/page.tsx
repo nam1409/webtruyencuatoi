@@ -5,6 +5,7 @@ import { getSiteSettings } from "@/actions/settings";
 import Link from "next/link";
 import { BookOpen, User, ArrowRight, Library as LibraryIcon } from "lucide-react";
 import { redirect } from "next/navigation";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export default async function LibraryPage() {
   const supabase = await createClient();
@@ -44,7 +45,7 @@ export default async function LibraryPage() {
               >
                 <div className="relative aspect-[3/4] rounded-[2rem] overflow-hidden shadow-lg transition-all duration-500 group-hover:scale-[1.02] group-hover:shadow-primary/20">
                   {story.cover_url ? (
-                    <img 
+                    <OptimizedImage 
                       src={story.cover_url} 
                       alt={story.title}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"

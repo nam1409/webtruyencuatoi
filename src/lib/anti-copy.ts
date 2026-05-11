@@ -171,7 +171,6 @@ function renderNodeToHtml(node: any, index: number, chapterId: string, options: 
       return `<div class="flex my-12 w-full" style="justify-content: ${align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'}">
                 <img src="${src}" style="width: ${imgWidth};" class="max-w-full h-auto rounded-2xl shadow-xl transition-transform hover:scale-[1.02]" />
               </div>`;
-
     default:
       return '';
   }

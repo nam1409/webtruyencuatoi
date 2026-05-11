@@ -5,6 +5,7 @@ import { Upload, Loader2, Image as ImageIcon, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadBrandingAsset } from "@/lib/storage-utils";
 import { toast } from "sonner";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface IconUploaderProps {
   label: string;
@@ -53,7 +54,7 @@ export function IconUploader({ label, value, onChange, path, description, aspect
           >
             {value ? (
               <>
-                <img src={value} className="w-full h-full object-contain p-2" alt={label} />
+                <OptimizedImage src={value} className="w-full h-full object-contain p-2" alt={label} />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                    <Upload className="w-6 h-6 text-white" />
                 </div>

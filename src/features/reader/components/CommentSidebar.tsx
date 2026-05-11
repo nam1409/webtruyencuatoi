@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 
 import { useReader } from "../context/ReaderContext";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface CommentSidebarProps {
   chapterId: string;
@@ -241,7 +242,7 @@ function CommentItem({
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-muted overflow-hidden shrink-0 shadow-sm border border-border/50">
               {comment.profiles?.avatar_url ? (
-                <img src={comment.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                <OptimizedImage src={comment.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/5">
                   <User className="w-4 h-4 text-primary/30" />

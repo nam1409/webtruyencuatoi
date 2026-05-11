@@ -15,6 +15,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface PageProps {
   params: Promise<{ storyId: string }>;
@@ -58,7 +59,7 @@ export default async function StoryManagementPage({ params }: PageProps) {
           <div className="flex flex-col md:flex-row items-start gap-8">
             <div className="w-40 h-56 bg-muted rounded-[2rem] overflow-hidden shadow-lg flex-shrink-0">
               {story.cover_url ? (
-                <img src={story.cover_url} alt={story.title} className="w-full h-full object-cover" />
+                <OptimizedImage src={story.cover_url} alt={story.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <BookOpen className="w-12 h-12 text-muted-foreground/20" />

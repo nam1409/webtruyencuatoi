@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface StoryListProps {
   stories: any[];
@@ -57,7 +58,7 @@ export function StoryList({ stories }: StoryListProps) {
             <div className="flex flex-col sm:flex-row sm:items-center p-6 gap-6">
               <div className="relative w-full sm:w-24 h-32 bg-muted rounded-2xl overflow-hidden flex-shrink-0 shadow-inner">
                 {story.cover_url ? (
-                  <img src={story.cover_url} alt={story.title} className="w-full h-full object-cover" />
+                  <OptimizedImage src={story.cover_url} alt={story.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Book className="w-8 h-8 text-muted-foreground/30" />

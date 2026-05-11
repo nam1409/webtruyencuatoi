@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateStory } from "@/actions/stories";
 import { uploadImage } from "@/lib/storage";
 import { toast } from "sonner";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface EditStoryDialogProps {
   story: any;
@@ -96,7 +97,7 @@ export function EditStoryDialog({ story }: EditStoryDialogProps) {
               >
                 {coverUrl ? (
                   <>
-                    <img src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+                    <OptimizedImage src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <ImagePlus className="w-8 h-8 text-white" />
                     </div>
@@ -204,7 +205,7 @@ export function EditStoryDialog({ story }: EditStoryDialogProps) {
                       >
                         {metadata.qr_code_url ? (
                           <>
-                            <img src={metadata.qr_code_url} alt="QR Code" className="w-full h-full object-contain p-2" />
+                            <OptimizedImage src={metadata.qr_code_url} alt="QR Code" className="w-full h-full object-contain p-2" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
                               <ImagePlus className="w-6 h-6 text-white" />
                             </div>

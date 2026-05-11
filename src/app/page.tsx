@@ -9,6 +9,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { cn } from "@/lib/utils";
 import { getNews } from "@/actions/news";
 import { formatDistanceToNow } from "date-fns";
@@ -175,12 +176,12 @@ function StoryCard({ story }: { story: any }) {
         {/* Cover Image Area */}
         <div className="relative aspect-[3/4.2] overflow-hidden">
           {story.cover_url ? (
-            <Image
+            <OptimizedImage
               src={story.cover_url}
               alt={story.title}
               fill
-              unoptimized
               className="object-cover transition-transform duration-700 group-hover:scale-110"
+              sizes="(max-width: 768px) 50vw, 20vw"
             />
           ) : (
             <div className="flex h-full items-center justify-center bg-muted/20">

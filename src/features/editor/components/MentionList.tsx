@@ -2,6 +2,7 @@
 
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { User } from 'lucide-react';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export const MentionList = forwardRef((props: any, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -58,7 +59,7 @@ export const MentionList = forwardRef((props: any, ref) => {
           >
             <div className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 ${index === selectedIndex ? 'bg-white/20' : 'bg-muted'}`}>
               {item.avatar_url ? (
-                <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+                <OptimizedImage src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <User className={`w-4 h-4 ${index === selectedIndex ? 'text-white' : 'text-muted-foreground/40'}`} />

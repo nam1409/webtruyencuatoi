@@ -64,6 +64,8 @@ import { RatingSystem } from "@/components/story/RatingSystem";
 import { ViewCounter } from "@/features/reader/components/ViewCounter";
 import { FollowButton } from "@/components/story/FollowButton";
 import { DownloadStoryButton } from "@/components/story/DownloadStoryButton";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import Image from "next/image";
 
 export default async function StoryDetailPage({ params }: { params: Promise<{ storySlug: string }> }) {
   const { storySlug } = await params;
@@ -142,19 +144,31 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
 
       <main className="flex-1 pb-24">
       {/* Hero Banner Area */}
-      <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden">
+      <div className="relative h-auto min-h-[450px] md:h-[550px] w-full overflow-hidden pt-12 md:pt-0">
         {story.cover_url && (
           <div className="absolute inset-0">
-            <img src={story.cover_url} alt="Banner" className="w-full h-full object-cover blur-2xl opacity-30 scale-110" />
-            <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/80 to-background" />
+            <OptimizedImage 
+              src={story.cover_url} 
+              alt="Banner" 
+              fill 
+              className="object-cover blur-3xl opacity-30 scale-125" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background" />
           </div>
         )}
         
-        <div className="container max-w-6xl mx-auto px-4 h-full relative z-10 flex flex-col md:flex-row items-center md:items-end gap-8 pb-12">
+        <div className="container max-w-6xl mx-auto px-4 h-full relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-10 pb-12">
           {/* Cover Image */}
-          <div className="w-full max-w-[240px] aspect-[2/3] rounded-[2rem] overflow-hidden shadow-2xl shadow-black/40 border-4 border-background transform -rotate-1">
+          <div className="relative w-[180px] md:w-[260px] aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/60 border-4 border-background transform -rotate-1 flex-shrink-0 mt-8 md:mt-0">
             {story.cover_url ? (
-              <img src={story.cover_url} alt={story.title} className="w-full h-full object-cover" />
+              <OptimizedImage 
+                src={story.cover_url} 
+                alt={story.title} 
+                fill 
+                className="object-cover" 
+                preload
+                sizes="(max-width: 768px) 180px, 260px"
+              />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center text-4xl font-black text-muted-foreground/20 italic">
                 {story.title[0]}
@@ -296,7 +310,7 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
                   <div key={char.id} className="flex items-start gap-5 p-5 bg-muted/10 rounded-[2rem] border border-border/40 hover:bg-muted/20 transition-all group">
                     <div className="w-20 h-20 rounded-2xl overflow-hidden bg-muted flex-shrink-0 shadow-lg border-2 border-background">
                       {char.avatar_url ? (
-                        <img src={char.avatar_url} alt={char.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                        <OptimizedImage src={char.avatar_url} alt={char.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <User className="w-8 h-8 text-muted-foreground/20" />
@@ -388,8 +402,15 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
             <div className="space-y-4">
               {/* Uploader (Author) */}
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50 flex-shrink-0">
-                  <img src={story.profiles?.avatar_url} className="w-full h-full object-cover" />
+                <div className="relative w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50 flex-shrink-0">
+                  {story.profiles?.avatar_url && (
+                    <OptimizedImage 
+                      src={story.profiles.avatar_url} 
+                      alt={story.profiles.display_name || "Avatar"} 
+                      fill 
+                      className="object-cover" 
+                    />
+                  )}
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <p className="text-xs font-bold truncate">{story.profiles?.display_name || "Thành viên"}</p>
@@ -400,8 +421,15 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
               {/* Other Collaborators */}
               {collaborators.map((collab: any) => (
                 <div key={collab.id} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50 flex-shrink-0">
-                    <img src={collab.profiles?.avatar_url} className="w-full h-full object-cover" />
+                  <div className="relative w-8 h-8 rounded-lg bg-muted overflow-hidden border border-border/50 flex-shrink-0">
+                    {collab.profiles?.avatar_url && (
+                      <OptimizedImage 
+                        src={collab.profiles.avatar_url} 
+                        alt={collab.profiles.display_name || "Avatar"} 
+                        fill 
+                        className="object-cover" 
+                      />
+                    )}
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <p className="text-xs font-bold truncate">{collab.profiles?.display_name || collab.profiles?.username}</p>

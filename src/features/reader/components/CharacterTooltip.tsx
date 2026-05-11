@@ -2,6 +2,7 @@
 
 import { User, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface CharacterTooltipProps {
   character: any;
@@ -26,7 +27,7 @@ export function CharacterTooltip({ character, position, onClose }: CharacterTool
     >
       <div className="relative h-32 bg-primary/10">
         {character.avatar_url ? (
-          <img src={character.avatar_url} alt={character.name} className="w-full h-full object-cover" />
+          <OptimizedImage src={character.avatar_url} alt={character.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <User className="w-12 h-12 text-primary/20" />

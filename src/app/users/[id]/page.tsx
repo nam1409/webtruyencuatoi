@@ -9,6 +9,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export default async function UserProfilePage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -137,7 +138,7 @@ export default async function UserProfilePage({ params }: { params: { id: string
                       <Card className="group overflow-hidden border-primary/10 hover:border-primary/30 transition-all rounded-[2rem]">
                         <div className="flex gap-4 p-4">
                           <div className="w-24 h-32 rounded-xl overflow-hidden shadow-lg flex-shrink-0">
-                            <img src={story.cover_url} alt={story.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                            <OptimizedImage src={story.cover_url} alt={story.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                           </div>
                           <div className="flex-1 py-1">
                             <h3 className="font-black tracking-tight leading-tight group-hover:text-primary transition-colors">{story.title}</h3>

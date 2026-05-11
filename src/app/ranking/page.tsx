@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Trophy, Flame, BookOpen, Star, TrendingUp, User, ArrowRight, Crown } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export default async function RankingPage({ searchParams }: { searchParams: { type?: string } }) {
   const { type = "views" } = await searchParams;
@@ -73,7 +74,7 @@ export default async function RankingPage({ searchParams }: { searchParams: { ty
             <div className="order-2 md:order-1 flex flex-col items-center gap-4">
               <Link href={`/truyen/${stories[1].slug}`} className="relative group">
                 <div className="w-40 h-52 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-zinc-300">
-                  <img src={stories[1].cover_url} className="w-full h-full object-cover" />
+                  <OptimizedImage alt={stories[1].title} src={stories[1].cover_url} className="w-full h-full object-cover" />
                   <div className="absolute top-4 left-4 w-10 h-10 bg-zinc-300 rounded-xl flex items-center justify-center font-black text-zinc-800 shadow-lg">2</div>
                 </div>
                 <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-zinc-300 rounded-2xl flex items-center justify-center text-zinc-800 border-4 border-background shadow-xl">
@@ -90,7 +91,7 @@ export default async function RankingPage({ searchParams }: { searchParams: { ty
             <div className="order-1 md:order-2 flex flex-col items-center gap-6">
               <Link href={`/truyen/${stories[0].slug}`} className="relative group">
                 <div className="w-48 h-64 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(var(--primary-rgb),0.3)] border-4 border-amber-400 scale-110">
-                  <img src={stories[0].cover_url} className="w-full h-full object-cover" />
+                  <OptimizedImage alt={stories[0].title} src={stories[0].cover_url} className="w-full h-full object-cover" />
                   <div className="absolute top-4 left-4 w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center font-black text-amber-900 shadow-lg">1</div>
                 </div>
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2">
@@ -110,7 +111,7 @@ export default async function RankingPage({ searchParams }: { searchParams: { ty
             <div className="order-3 flex flex-col items-center gap-4">
               <Link href={`/truyen/${stories[2].slug}`} className="relative group">
                 <div className="w-40 h-52 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-amber-700/50">
-                  <img src={stories[2].cover_url} className="w-full h-full object-cover" />
+                  <OptimizedImage alt={stories[2].title} src={stories[2].cover_url} className="w-full h-full object-cover" />
                   <div className="absolute top-4 left-4 w-10 h-10 bg-amber-700 text-white rounded-xl flex items-center justify-center font-black shadow-lg">3</div>
                 </div>
                 <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-amber-700 rounded-2xl flex items-center justify-center text-white border-4 border-background shadow-xl">
@@ -140,7 +141,7 @@ export default async function RankingPage({ searchParams }: { searchParams: { ty
                 </div>
                 
                 <div className="w-16 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
-                  <img src={story.cover_url} className="w-full h-full object-cover" />
+                  <OptimizedImage alt={story.title} src={story.cover_url} className="w-full h-full object-cover" />
                 </div>
 
                 <div className="flex-1 min-w-0">

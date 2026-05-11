@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { getCharactersByStory, upsertCharacter, deleteCharacter } from "@/actions/characters";
 import { uploadImage } from "@/lib/storage";
 import { toast } from "sonner";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface CharacterManagerProps {
   storyId: string;
@@ -131,7 +132,7 @@ export function CharacterManager({ storyId }: CharacterManagerProps) {
                 onClick={() => document.getElementById('avatar-upload')?.click()}
               >
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  <OptimizedImage src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <User className="w-8 h-8 text-muted-foreground/30" />
@@ -192,7 +193,7 @@ export function CharacterManager({ storyId }: CharacterManagerProps) {
           <div key={char.id} className="p-4 bg-muted/10 rounded-2xl border border-border/50 flex items-center gap-4 group hover:bg-muted/20 transition-all">
             <div className="w-14 h-14 bg-muted rounded-xl overflow-hidden shrink-0 shadow-sm">
               {char.avatar_url ? (
-                <img src={char.avatar_url} alt={char.name} className="w-full h-full object-cover" />
+                <OptimizedImage src={char.avatar_url} alt={char.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center"><User className="w-6 h-6 text-muted-foreground/30" /></div>
               )}

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 interface AdminHeaderProps {
   onMenuClick: () => void;
@@ -86,9 +87,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">Admin Hub</span>
             <span className="text-xs font-black tracking-tight">{userProfile?.display_name || "Quản trị viên"}</span>
           </div>
-          <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-primary/10 border-2 border-primary/20 overflow-hidden group-hover:scale-105 transition-transform">
+          <div className="relative w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-primary/10 border-2 border-primary/20 overflow-hidden group-hover:scale-105 transition-transform">
             {userProfile?.avatar_url ? (
-              <img src={userProfile.avatar_url} className="w-full h-full object-cover" />
+              <OptimizedImage 
+                src={userProfile.avatar_url} 
+                alt={userProfile.display_name || "Avatar"}
+                fill
+                className="object-cover"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-primary font-black text-base md:text-lg">
                 {userProfile?.display_name?.[0] || "A"}

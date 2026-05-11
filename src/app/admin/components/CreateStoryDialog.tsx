@@ -18,6 +18,7 @@ import { uploadImage } from "@/lib/storage";
 import { toast } from "sonner";
 import slugify from "slugify";
 import Image from "next/image";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export function CreateStoryDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,7 +92,7 @@ export function CreateStoryDialog() {
               >
                 {coverUrl ? (
                   <>
-                    <img src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+                    <OptimizedImage src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <ImagePlus className="w-8 h-8 text-white" />
                     </div>

@@ -6,6 +6,7 @@ import { getCollaborators, addCollaborator, removeCollaborator } from "@/actions
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export function CollaboratorManagement({ storyId }: { storyId: string }) {
   const [collaborators, setCollaborators] = useState<any[]>([]);
@@ -119,7 +120,7 @@ export function CollaboratorManagement({ storyId }: { storyId: string }) {
               <div key={collab.id} className="flex items-center justify-between p-4 bg-muted/20 rounded-2xl border border-border/30 group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-muted overflow-hidden border border-border/50">
-                    <img src={collab.profiles?.avatar_url} className="w-full h-full object-cover" />
+                    <OptimizedImage alt={collab.profiles?.display_name || collab.profiles?.username} src={collab.profiles?.avatar_url} className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <p className="text-xs font-black uppercase tracking-tight">{collab.profiles?.display_name || collab.profiles?.username}</p>

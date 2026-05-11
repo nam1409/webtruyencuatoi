@@ -7,6 +7,7 @@ import { BookOpen, User, Clock, Trash2, ArrowRight } from "lucide-react";
 import { redirect } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export default async function HistoryPage() {
   const supabase = await createClient();
@@ -52,7 +53,7 @@ export default async function HistoryPage() {
               >
                 <div className="w-full md:w-32 aspect-[3/4] rounded-2xl overflow-hidden bg-muted shrink-0 shadow-md">
                   {entry.stories?.cover_url ? (
-                    <img 
+                    <OptimizedImage 
                       src={entry.stories.cover_url} 
                       alt={entry.stories.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
