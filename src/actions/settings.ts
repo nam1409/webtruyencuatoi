@@ -1,9 +1,24 @@
 "use server";
 
+import { redis } from "@/lib/redis";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function getSiteSettings() {
+  const cacheKey = "site_settings:global";
+  
+  // Try Redis cache first
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return cached as any;
+    } catch (e: any) {
+      // Don't log dynamic usage errors during build
+      if (e.message?.includes("Dynamic server usage")) return;
+      console.error("Redis settings cache error:", e);
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("site_settings")
@@ -16,7 +31,19 @@ export async function getSiteSettings() {
     return { site_genres: [] };
   }
 
-  return data || { site_genres: [] };
+  const result = data || { site_genres: [] };
+
+  // Save to Redis
+  if (process.env.UPSTASH_REDIS_REST_URL && data) {
+    try {
+      await redis.set(cacheKey, result, { ex: 3600 }); // Cache for 1 hour
+    } catch (e: any) {
+      if (e.message?.includes("Dynamic server usage")) return;
+      console.error("Redis settings save error:", e);
+    }
+  }
+
+  return result;
 }
 
 export async function updateSiteSettings(key: string, value: any) {
@@ -34,6 +61,11 @@ export async function updateSiteSettings(key: string, value: any) {
   if (error) {
     console.error(`Error updating setting ${key}:`, error);
     throw error;
+  }
+  
+  // Clear cache
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del("site_settings:global").catch(console.error);
   }
   
   revalidatePath("/", "layout");
@@ -72,6 +104,11 @@ export async function updateMultipleSiteSettings(settings: Record<string, any>) 
   if (error) {
     console.error("Error updating multiple settings:", error);
     throw error;
+  }
+  
+  // Clear cache
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del("site_settings:global").catch(console.error);
   }
   
   revalidatePath("/", "layout");

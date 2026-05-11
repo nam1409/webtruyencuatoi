@@ -58,7 +58,6 @@ export async function generateMetadata(): Promise<Metadata> {
       title: siteName,
       description: siteDesc,
     },
-    manifest: "/manifest.json",
     icons: {
       icon: settings.favicon_url || "/favicon.ico",
       apple: settings.apple_icon_url || "/apple-touch-icon.png",

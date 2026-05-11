@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { getSiteSettings } from "@/actions/admin";
+import { getSiteSettings } from "@/actions/settings";
 import { HomepageEditor } from "./components/HomepageEditor";
 import { Layout } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -26,7 +26,16 @@ export async function proxy(request: NextRequest) {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => request.cookies.getAll(), setAll: () => {} } }
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet: { name: any; value: any; options: any }[], _headers: any) {
+          // Read-only in proxy settings check, but following signature
+        },
+      },
+    }
   )
 
   const { data: settings } = await supabase.from('site_settings').select('*').limit(1).maybeSingle()

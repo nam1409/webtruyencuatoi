@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MessageSquare, Send, X, User, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,25 +23,35 @@ export function CommentSidebar({
   chapterId, 
   paragraphId, 
   initialComments = [], 
-  onCommentAdded,
   onClose 
-}: CommentSidebarProps) {
-  const { refreshComments } = useReader();
+}: Omit<CommentSidebarProps, 'onCommentAdded'>) {
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [threadStack, setThreadStack] = useState<string[]>([]);
 
-  // Organize comments into parent-child structure
-  const rootComments = initialComments.filter(c => {
-    const isRoot = !c.parent_id;
-    if (paragraphId === "general") return isRoot && c.paragraph_id === null;
-    return isRoot && String(c.paragraph_id) === String(paragraphId);
-  });
+  // 1. Normalize data: O(n) once, instead of O(n^2) every render
+  const { repliesMap, rootComments } = useMemo(() => {
+    const rMap = new Map<string, any[]>();
+    const roots: any[] = [];
 
-  const getReplies = (parentId: string) => {
-    return initialComments.filter(c => c.parent_id === parentId);
-  };
+    for (const c of initialComments) {
+      if (c.parent_id) {
+        if (!rMap.has(c.parent_id)) rMap.set(c.parent_id, []);
+        rMap.get(c.parent_id)!.push(c);
+      } else {
+        // Filter by paragraph here once
+        const isMatch = paragraphId === "general" 
+          ? c.paragraph_id === null 
+          : String(c.paragraph_id) === String(paragraphId);
+        
+        if (isMatch) roots.push(c);
+      }
+    }
+    return { repliesMap: rMap, rootComments: roots };
+  }, [initialComments, paragraphId]);
+
+  const getReplies = (parentId: string) => repliesMap.get(parentId) || [];
 
   const activeThreadId = threadStack[threadStack.length - 1] || null;
   const activeThread = activeThreadId ? initialComments.find(c => c.id === activeThreadId) : null;
@@ -60,6 +70,9 @@ export function CommentSidebar({
     if (!newComment.trim()) return;
     setIsSubmitting(true);
     try {
+      // Incremental Update Only: We JUST send to DB. 
+      // The Realtime listener in ReaderLayout will update the 'initialComments' prop,
+      // which triggers useMemo to re-normalize everything efficiently.
       await createComment({
         chapter_id: chapterId,
         paragraph_id: paragraphId === "general" ? undefined : (paragraphId || undefined),
@@ -68,11 +81,9 @@ export function CommentSidebar({
       });
       setNewComment("");
       setReplyTo(null);
-      toast.success("Đã gửi bình luận");
-      refreshComments();
-      if (onCommentAdded) onCommentAdded();
+      toast.success("Đã gửi");
     } catch (error: any) {
-      toast.error(error.message || "Lỗi khi gửi bình luận");
+      toast.error(error.message || "Lỗi khi gửi");
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +118,7 @@ export function CommentSidebar({
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-border/50 bg-muted/20">
+      <div className="flex items-center justify-between p-6 border-b border-border/50 bg-muted/20 shrink-0">
         <div className="flex items-center gap-3">
           {threadStack.length > 0 ? (
             <button 
@@ -180,7 +191,7 @@ export function CommentSidebar({
       </div>
 
       {/* Input Area */}
-      <div className="p-6 border-t border-border/50 bg-background/80 backdrop-blur-md sticky bottom-0 z-10">
+      <div className="p-6 border-t border-border/50 bg-background/80 backdrop-blur-md sticky bottom-0 z-10 shrink-0">
         {replyTo && (
           <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-t-[1rem] border-x border-t border-primary/10 text-[10px] font-bold animate-in slide-in-from-bottom-2 duration-300">
             <span className="text-primary truncate">Đang trả lời @{replyTo.profiles?.display_name}</span>

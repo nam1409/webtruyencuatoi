@@ -3,7 +3,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+import { redis } from "@/lib/redis";
+
 export async function getVolumesByStory(storyId: string) {
+  const cacheKey = `volumes:story:${storyId}`;
+
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return cached as any[];
+    } catch (e) {
+      console.error("Redis volumes cache error:", e);
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("volumes")
@@ -14,6 +27,14 @@ export async function getVolumesByStory(storyId: string) {
   if (error) {
     console.error("Error fetching volumes:", error);
     return [];
+  }
+
+  if (process.env.UPSTASH_REDIS_REST_URL && data) {
+    try {
+      await redis.set(cacheKey, data, { ex: 3600 }); // Cache for 1 hour
+    } catch (e) {
+      console.error("Redis volumes save error:", e);
+    }
   }
 
   return data;
@@ -45,6 +66,10 @@ export async function createVolume(storyId: string, title: string) {
 
   if (error) throw new Error(error.message);
 
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`volumes:story:${storyId}`).catch(console.error);
+  }
+
   revalidatePath(`/admin/stories/${storyId}/settings`);
   return data;
 }
@@ -58,6 +83,10 @@ export async function updateVolume(id: string, storyId: string, title: string) {
 
   if (error) throw new Error(error.message);
 
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`volumes:story:${storyId}`).catch(console.error);
+  }
+
   revalidatePath(`/admin/stories/${storyId}/settings`);
 }
 
@@ -70,6 +99,10 @@ export async function deleteVolume(id: string, storyId: string) {
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`volumes:story:${storyId}`).catch(console.error);
+  }
 
   revalidatePath(`/admin/stories/${storyId}/settings`);
 }
@@ -107,6 +140,10 @@ export async function reorderVolumes(storyId: string, volumeId: string, directio
     .eq("id", targetVolume.id);
 
   if (error2) throw new Error(error2.message);
+
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`volumes:story:${storyId}`).catch(console.error);
+  }
 
   revalidatePath(`/admin/stories/${storyId}/settings`);
 }

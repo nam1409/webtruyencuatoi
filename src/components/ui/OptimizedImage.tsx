@@ -49,7 +49,8 @@ export function OptimizedImage({
         "relative overflow-hidden", 
         fill && "w-full h-full",
         loading && "animate-pulse bg-muted",
-        className
+        // Only pass height/width related classes to the container
+        className?.split(' ').filter(c => c.startsWith('h-') || c.startsWith('w-') || c.startsWith('aspect-')).join(' ')
       )}
       style={!fill ? { width: props.width, height: props.height } : undefined}
     >
@@ -59,13 +60,16 @@ export function OptimizedImage({
           alt={alt || "ZenStory Image"}
           className={cn(
             "duration-700 ease-in-out",
+            // Use object-cover as default for fill only if no other object-fit is provided
+            fill && !className?.includes('object-') && "object-cover",
             loading ? "scale-105 blur-lg" : "scale-100 blur-0",
-            className
+            // Pass all other classes to the image
+            className?.split(' ').filter(c => !c.startsWith('h-') && !c.startsWith('w-') && !c.startsWith('aspect-') && c !== 'hidden').join(' ')
           )}
           onLoad={() => setLoading(false)}
           onError={() => setError(true)}
           fill={fill || !props.width}
-          {...(preload ? { preload: true } : {})}
+          priority={preload}
           sizes={sizes || (fill ? "100vw" : undefined)}
           {...props}
         />
@@ -76,7 +80,7 @@ export function OptimizedImage({
           className={cn(
             "duration-700 ease-in-out",
             loading ? "scale-105 blur-lg" : "scale-100 blur-0",
-            className,
+            className?.split(' ').filter(c => c !== 'hidden').join(' '),
             fill ? "absolute inset-0 w-full h-full object-cover" : ""
           )}
           onLoad={() => setLoading(false)}

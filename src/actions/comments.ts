@@ -49,7 +49,24 @@ export async function getCommentsByChapter(chapterId: string) {
   return data;
 }
 
+import { redis } from "@/lib/redis";
+
 export async function getCommentCountsByParagraph(chapterId: string) {
+  const cacheKey = `comments:counts:${chapterId}`;
+
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        console.log(`[REDIS HIT] Comment counts: ${cacheKey}`);
+        return cached as Record<string, number>;
+      }
+      console.log(`[REDIS MISS] Comment counts: ${cacheKey}`);
+    } catch (e) {
+      console.error("Redis comment counts cache error:", e);
+    }
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -64,13 +81,20 @@ export async function getCommentCountsByParagraph(chapterId: string) {
     return {};
   }
 
-  // Aggregate counts manually since JS is easier for this specific shape
   const counts: Record<string, number> = {};
   data.forEach(comment => {
     if (comment.paragraph_id) {
       counts[comment.paragraph_id] = (counts[comment.paragraph_id] || 0) + 1;
     }
   });
+
+  if (process.env.UPSTASH_REDIS_REST_URL && data.length > 0) {
+    try {
+      await redis.set(cacheKey, counts, { ex: 600 }); // Cache for 10 mins
+    } catch (e) {
+      console.error("Redis comment counts save error:", e);
+    }
+  }
 
   return counts;
 }
@@ -107,6 +131,10 @@ export async function createComment(data: {
     .single();
 
   if (error) throw new Error(error.message);
+
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`comments:counts:${data.chapter_id}`).catch(console.error);
+  }
 
   // Notify the author
   if (chapter && chapter.stories) {
@@ -159,16 +187,41 @@ export async function approveComment(id: string) {
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    const { data: comment } = await supabase
+      .from("comments")
+      .select("chapter_id")
+      .eq("id", id)
+      .single();
+    if (comment) {
+      await redis.del(`comments:counts:${comment.chapter_id}`).catch(console.error);
+    }
+  }
+
   revalidatePath("/admin/comments");
 }
 
 export async function deleteComment(id: string) {
   const supabase = await createClient();
+
+  // Fetch chapter_id before deleting to invalidate cache
+  const { data: comment } = await supabase
+    .from("comments")
+    .select("chapter_id")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("comments")
     .delete()
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
+  if (process.env.UPSTASH_REDIS_REST_URL && comment) {
+    await redis.del(`comments:counts:${comment.chapter_id}`).catch(console.error);
+  }
+
   revalidatePath("/admin/comments");
 }

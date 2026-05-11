@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { saveReadingProgress } from "@/actions/progress";
 import { Button } from "@/components/ui/button";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 interface ReaderLayoutProps {
   children: React.ReactNode;
@@ -48,7 +49,7 @@ export function ReaderLayout({
   const { settings, comments, setComments, setSelectedParagraph: setGlobalSelectedParagraph } = useReader();
   const selectedParagraph = settings.selectedParagraph as string | null;
   const setSelectedParagraph = (id: string | null) => setGlobalSelectedParagraph(id);
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showSettings, setShowSettings] = useState(false);
@@ -78,7 +79,7 @@ export function ReaderLayout({
         getCommentsByChapter(chapterId),
         getCharactersByStory(storyId)
       ]);
-      setComments([...(commentData || [])]); // Spread to ensure reference change
+      setComments([...(commentData || [])]);
       setCharacters(charData || []);
     } catch (error) {
       console.error("Error loading reader data:", error);
@@ -87,6 +88,78 @@ export function ReaderLayout({
 
   useEffect(() => {
     loadData();
+
+    // 1. Khởi tạo Supabase Client
+    const supabase = createBrowserClient();
+
+    // 2. Thiết lập Realtime Subscription cho comments
+    const channel = supabase
+      .channel(`chapter_comments:${chapterId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'comments',
+          // Tạm thời bỏ filter để debug xem có nhận được gì không
+          // filter: `chapter_id=eq.${chapterId}` 
+        },
+        async (payload: any) => {
+          const cid = payload.new?.chapter_id || payload.old?.chapter_id;
+          if (cid !== chapterId) return;
+
+          console.log("Realtime comment change:", payload);
+
+          if (payload.eventType === 'INSERT') {
+            // Hiển thị ngay lập tức bằng dữ liệu từ payload (tránh delay)
+            const placeholderComment = {
+              ...payload.new,
+              profiles: {
+                display_name: "Người dùng mới",
+                avatar_url: null
+              }
+            };
+
+            setComments((prev: any[]) => {
+              if (prev.some(c => c.id === placeholderComment.id)) return prev;
+              return [...prev, placeholderComment];
+            });
+
+            // Sau đó mới lấy thêm thông tin profile đầy đủ
+            const { data: fullComment } = await supabase
+              .from("comments")
+              .select("*, profiles:user_id (display_name, avatar_url)")
+              .eq("id", payload.new.id)
+              .single();
+            
+            if (fullComment) {
+              setComments((prev: any[]) => prev.map(c => 
+                c.id === fullComment.id ? fullComment : c
+              ));
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            // Khi có update (ví dụ được duyệt), chúng ta cũng cần lấy lại profile
+            const { data: updatedComment } = await supabase
+              .from("comments")
+              .select("*, profiles:user_id (display_name, avatar_url)")
+              .eq("id", payload.new.id)
+              .single();
+
+            if (updatedComment) {
+              setComments((prev: any[]) => prev.map(c =>
+                c.id === updatedComment.id ? updatedComment : c
+              ));
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setComments((prev: any[]) => prev.filter(c => c.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [chapterId, storyId]);
 
   // Handle direct comment linking from notifications
@@ -97,7 +170,7 @@ export function ReaderLayout({
       if (linkedComment) {
         // Open the sidebar for the correct paragraph
         setSelectedParagraph(linkedComment.paragraph_id || "general");
-        
+
         // If it's a paragraph comment, scroll to that paragraph in the main content
         if (linkedComment.paragraph_id) {
           setTimeout(() => {
@@ -114,12 +187,12 @@ export function ReaderLayout({
   useEffect(() => {
     const handleParagraphClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      
+
       // Ignore clicks inside the password gate
       if (target.closest('.password-gate-container')) {
         return;
       }
-      
+
       // Nếu nhấn vào các phần tử tương tác đặc biệt, không mở bảng bình luận
       if (target.closest('.spoiler-text, .character-mention, .annotation-span, [data-slot="dialog-trigger"]')) {
         return;
@@ -274,7 +347,7 @@ export function ReaderLayout({
             {versions.length > 1 && (
               <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-muted/50 border border-border rounded-xl">
                 <span className="text-[8px] sm:text-[9px] font-black uppercase text-muted-foreground/60">Phiên bản:</span>
-                <select 
+                <select
                   className="bg-transparent border-none outline-none text-[10px] font-bold text-primary cursor-pointer"
                   value={currentVersionId}
                   onChange={(e) => {
@@ -311,10 +384,10 @@ export function ReaderLayout({
         </div>
 
         <ReaderSettings open={showSettings} onOpenChange={setShowSettings} />
-        
+
         {/* Progress Bar */}
         <div className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/10">
-          <div 
+          <div
             className="h-full bg-primary transition-all duration-150 ease-out shadow-[0_0_8px_rgba(var(--primary),0.5)]"
             style={{ width: `${scrollProgress}%` }}
           />
@@ -330,9 +403,9 @@ export function ReaderLayout({
             paddingRight: 'var(--reader-container-padding)',
             fontSize: `${settings.fontSize}px`,
             lineHeight: settings.lineHeight,
-            fontFamily: settings.font === 'font-serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : 
-                        settings.font === 'font-sans' ? 'ui-sans-serif, system-ui, sans-serif' : 
-                        `'${settings.font}', var(--reader-font), sans-serif`
+            fontFamily: settings.font === 'font-serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' :
+              settings.font === 'font-sans' ? 'ui-sans-serif, system-ui, sans-serif' :
+                `'${settings.font}', var(--reader-font), sans-serif`
           }}
         >
           <article className="prose-reader animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -344,7 +417,7 @@ export function ReaderLayout({
 
             <div className="reader-content text-left selection:bg-primary/20 relative overflow-hidden">
               {protectionEnabled && (
-                <div 
+                <div
                   className="absolute inset-0 pointer-events-none select-none opacity-[0.03] dark:opacity-[0.02] z-0"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='30' font-weight='900' font-family='sans-serif' fill='black' text-anchor='middle' transform='rotate(-25 200 200)' style='text-transform: uppercase; letter-spacing: 0.5em;'%3EZenStory Elite%3C/text%3E%3C/svg%3E")`,
@@ -431,7 +504,6 @@ export function ReaderLayout({
                   chapterId={chapterId}
                   paragraphId={selectedParagraph}
                   initialComments={comments}
-                  onCommentAdded={loadData}
                   onClose={() => setSelectedParagraph(null)}
                 />
               </aside>
@@ -442,14 +514,13 @@ export function ReaderLayout({
                 onClick={() => setSelectedParagraph(null)}
               >
                 <div
-                  className="absolute bottom-0 left-0 right-0 max-h-[80vh] bg-background border-t border-border rounded-t-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-500"
+                  className="absolute bottom-0 left-0 right-0 h-[80vh] bg-background border-t border-border rounded-t-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-500"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <CommentSidebar
                     chapterId={chapterId}
                     paragraphId={selectedParagraph}
                     initialComments={comments}
-                    onCommentAdded={loadData}
                     onClose={() => setSelectedParagraph(null)}
                   />
                 </div>

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Download, CheckCircle2, Loader2, WifiOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { saveChapterOffline, removeOfflineStory, isChapterOffline } from "@/lib/offline-storage";
+import { saveChapterOffline, removeOfflineStory, isStoryOffline } from "@/lib/offline-storage";
 import { getChaptersContentByStory } from "@/actions/chapters";
 
 interface DownloadStoryButtonProps {
@@ -25,13 +25,9 @@ export function DownloadStoryButton({ storyId, storyTitle, storySlug, coverUrl, 
   }, [storyId]);
 
   const checkOfflineStatus = async () => {
-    // Check if the first chapter (or any) is offline as a proxy for the story
-    // In a real app, you might want a more robust way to check story status
-    const chapters = await getChaptersContentByStory(storyId);
-    if (chapters.length > 0) {
-        const offline = await isChapterOffline(storyId, chapters[0].id);
-        setIsDownloaded(offline);
-    }
+    // Check locally in IndexedDB if any chapter of this story exists
+    const offline = await isStoryOffline(storyId);
+    setIsDownloaded(offline);
   };
 
   const handleDownload = async () => {

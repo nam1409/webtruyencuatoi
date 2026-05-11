@@ -68,6 +68,11 @@ export async function updateChapter(id: string, updates: any) {
   }
   if (process.env.UPSTASH_REDIS_REST_URL) {
     await redis.del(`chapter:content:${id}`);
+    await redis.del(`chapters:list:${data.story_id}:true`);
+    await redis.del(`chapters:list:${data.story_id}:false`);
+    if (data?.stories?.slug && data?.slug) {
+      await redis.del(`chapter:slug:${data.stories.slug}:${data.slug}`);
+    }
   }
 
   revalidatePath(`/admin/editor/${id}`);
@@ -235,14 +240,10 @@ export async function publishChapter(id: string, versionId?: string) {
 
       // Xóa cache
       if (process.env.UPSTASH_REDIS_REST_URL) {
-        try {
-          const cacheKeys = await redis.keys(`chapter:content:${id}*`);
-          if (cacheKeys.length > 0) {
-            await redis.del(...cacheKeys);
-          }
-        } catch (e) {
-          console.error("Redis clear error:", e);
-          await redis.del(`chapter:content:${id}`);
+        await redis.del(`chapter:content:${id}`);
+        // Xóa cả bản slug cache
+        if (chapter?.stories?.slug && chapter?.slug) {
+          await redis.del(`chapter:slug:${chapter.stories.slug}:${chapter.slug}`);
         }
       }
 
@@ -280,14 +281,9 @@ export async function publishChapter(id: string, versionId?: string) {
 
     // Xóa cache
     if (process.env.UPSTASH_REDIS_REST_URL) {
-      try {
-        const cacheKeys = await redis.keys(`chapter:content:${id}*`);
-        if (cacheKeys.length > 0) {
-          await redis.del(...cacheKeys);
-        }
-      } catch (e) {
-        console.error("Redis clear error:", e);
-        await redis.del(`chapter:content:${id}`);
+      await redis.del(`chapter:content:${id}`);
+      if (data?.stories?.slug && data?.slug) {
+        await redis.del(`chapter:slug:${data.stories.slug}:${data.slug}`);
       }
     }
     
@@ -501,7 +497,24 @@ export async function restoreVersionToDraft(chapterId: string, content: any) {
   return data;
 }
 
-export async function getChapterBySlug(storySlug: string, chapterSlug: string) {
+import { cache } from "react";
+
+export const getChapterBySlug = cache(async (storySlug: string, chapterSlug: string) => {
+  const cacheKey = `chapter:slug:${storySlug}:${chapterSlug}`;
+  
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        console.log(`[REDIS HIT] Chapter by slug: ${cacheKey}`);
+        return cached as any;
+      }
+      console.log(`[REDIS MISS] Chapter by slug: ${cacheKey}`);
+    } catch (e) {
+      console.error("Redis chapter slug cache error:", e);
+    }
+  }
+
   const supabase = await createClient();
 
   // 1. Lấy thông tin chương và thông tin câu chuyện
@@ -584,10 +597,29 @@ export async function getChapterBySlug(storySlug: string, chapterSlug: string) {
     if (!access) return null;
   }
 
+  if (process.env.UPSTASH_REDIS_REST_URL && result) {
+    try {
+      await redis.set(`chapter:slug:${storySlug}:${chapterSlug}`, result, { ex: 3600 }); // Cache for 1 hour
+    } catch (e) {
+      console.error("Redis chapter slug save error:", e);
+    }
+  }
+
   return result;
-}
+});
 
 export async function getChaptersByStory(storyId: string, isPublic: boolean = false) {
+  const cacheKey = `chapters:list:${storyId}:${isPublic}`;
+  
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return cached as any[];
+    } catch (e) {
+      console.error("Redis chapters list cache error:", e);
+    }
+  }
+
   const supabase = await createClient();
   let query = supabase
     .from("chapters")
@@ -610,7 +642,17 @@ export async function getChaptersByStory(storyId: string, isPublic: boolean = fa
     return [];
   }
 
-  return data;
+  const result = data || [];
+
+  if (process.env.UPSTASH_REDIS_REST_URL && result.length > 0) {
+    try {
+      await redis.set(cacheKey, result, { ex: 300 }); // Cache for 5 mins
+    } catch (e) {
+      console.error("Redis chapters list save error:", e);
+    }
+  }
+
+  return result;
 }
 
 import { logActivity } from "@/actions/admin";
@@ -684,6 +726,10 @@ export async function createChapter(storyId: string, title: string, slug: string
     `Đã tạo chương mới: ${title}`
   );
 
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`chapters:list:${storyId}:true`);
+    await redis.del(`chapters:list:${storyId}:false`);
+  }
   revalidatePath(`/admin/stories/${storyId}`);
   return chapter;
 }
@@ -699,6 +745,8 @@ export async function deleteChapter(id: string, storyId: string) {
 
   if (process.env.UPSTASH_REDIS_REST_URL) {
     await redis.del(`chapter:content:${id}`);
+    await redis.del(`chapters:list:${storyId}:true`);
+    await redis.del(`chapters:list:${storyId}:false`);
   }
 
   revalidatePath(`/admin/stories/${storyId}`);
@@ -745,6 +793,10 @@ export async function reorderChapters(storyId: string, chapterId: string, direct
 
   if (error2) throw new Error(error2.message);
 
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    await redis.del(`chapters:list:${storyId}:true`);
+    await redis.del(`chapters:list:${storyId}:false`);
+  }
   revalidatePath(`/admin/stories/${storyId}`);
 }
 

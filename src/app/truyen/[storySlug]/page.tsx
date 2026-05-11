@@ -161,9 +161,10 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
           <div className="absolute inset-0">
             <OptimizedImage 
               src={story.cover_url} 
-              alt="Banner" 
+              alt={`${story.title} Banner`} 
               fill 
               className="object-cover blur-3xl opacity-30 scale-125" 
+              sizes="100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background" />
           </div>
@@ -421,6 +422,7 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
                       alt={story.profiles.display_name || "Avatar"} 
                       fill 
                       className="object-cover" 
+                      sizes="32px"
                     />
                   )}
                 </div>
@@ -440,6 +442,7 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
                         alt={collab.profiles.display_name || "Avatar"} 
                         fill 
                         className="object-cover" 
+                        sizes="32px"
                       />
                     )}
                   </div>

@@ -8,36 +8,18 @@ export async function checkAdminRole() {
 
   if (!user) return false;
 
-  // 1. Check global admin role
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Run checks in parallel for maximum speed
+  const [profileRes, storiesRes, collabRes] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    supabase.from("stories").select("id", { count: "exact", head: true }).eq("author_id", user.id).limit(1),
+    supabase.from("story_collaborators").select("id", { count: "exact", head: true }).eq("user_id", user.id).limit(1)
+  ]);
 
-  if (profile?.role === "admin") return true;
+  if (profileRes.data?.role === "admin") return true;
+  if (storiesRes.count && storiesRes.count > 0) return true;
+  if (collabRes.count && collabRes.count > 0) return true;
 
-  // 2. Check if user is an author of any story
-  const { count: storiesCount, error: storiesError } = await supabase
-    .from("stories")
-    .select("*", { count: "exact", head: true })
-    .eq("author_id", user.id);
-
-  if (storiesCount && storiesCount > 0) return true;
-
-  // 3. Check if user is a collaborator in any story
-  const { count: collabCount, error: collabError } = await supabase
-    .from("story_collaborators")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  const isCollab = collabCount !== null && collabCount > 0;
-  
-  if (!isCollab) {
-    console.log(`Access Denied for ${user.email}: Admin: ${profile?.role === "admin"}, Author count: ${storiesCount}, Collab count: ${collabCount}`);
-  }
-
-  return isCollab;
+  return false;
 }
 
 export async function getGlobalStats() {
@@ -94,20 +76,7 @@ export async function logActivity(action: string, targetType?: string, targetId?
   if (error) console.error("Failed to log activity:", error);
 }
 
-export async function getSiteSettings() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("site_settings")
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error("Error fetching site settings:", error);
-    return null;
-  }
-
-  return data;
-}
+// getSiteSettings has been moved to src/actions/settings.ts with Redis caching.
 
 import { revalidatePath } from "next/cache";
 

@@ -31,7 +31,7 @@ interface ReaderContextType {
   refreshKey: number;
   refreshComments: () => void;
   comments: any[];
-  setComments: (comments: any[]) => void;
+  setComments: React.Dispatch<React.SetStateAction<any[]>>;
   isFocused: boolean;
 }
 

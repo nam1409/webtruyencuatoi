@@ -108,11 +108,16 @@ export function Navbar({ user, settings }: NavbarProps) {
         <div className="container mx-auto px-4 flex items-center gap-8">
           <Link href="/" className="text-2xl font-black tracking-tighter flex items-center gap-2 group shrink-0">
             {settings?.logo_url ? (
-              <OptimizedImage 
-                src={settings.logo_url} 
-                alt={settings.site_name || "ZenStory"} 
-                className="h-16 w-auto object-contain transition-transform group-hover:scale-105" 
-              />
+              <div className="h-12 w-48 relative">
+                <OptimizedImage 
+                  src={settings.logo_url} 
+                  alt={settings.site_name || "ZenStory"} 
+                  fill
+                  className="object-contain transition-transform group-hover:scale-105" 
+                  sizes="200px"
+                  preload
+                />
+              </div>
             ) : (
               <>
                 <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-xs shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform duration-500">
@@ -301,7 +306,7 @@ export function Navbar({ user, settings }: NavbarProps) {
                   >
                     <div className="w-16 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                       {story.cover_url ? (
-                        <OptimizedImage alt={story.title} src={story.cover_url} className="w-full h-full object-cover" />
+                        <OptimizedImage alt={story.title} src={story.cover_url} fill className="object-cover" sizes="64px" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
                           <BookOpen className="w-6 h-6" />

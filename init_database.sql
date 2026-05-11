@@ -1318,3 +1318,25 @@ WITH CHECK (
     SELECT id FROM public.profiles WHERE role = 'admin'
   )
 );
+
+-- [10] REALTIME CONFIGURATION
+-- Enable Realtime for comments table
+ALTER TABLE "public"."comments" REPLICA IDENTITY FULL;
+
+-- Create publication if not exists and add comments table
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+  
+  -- Check if table is already in publication to avoid error
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND schemaname = 'public' 
+    AND tablename = 'comments'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE "public"."comments";
+  END IF;
+END $$;

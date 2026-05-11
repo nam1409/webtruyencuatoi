@@ -133,17 +133,20 @@ export function StaticContent({
 
   const commentCounts = useMemo(() => {
     if (!showComments) return {};
-    const counts: Record<string, number> = { ...initialCounts };
-    if (comments && comments.length > 0) {
+    
+    // Nếu có dữ liệu comments từ Realtime/ReaderContext, dùng nó hoàn toàn
+    if (comments) {
       const freshCounts: Record<string, number> = {};
       comments.forEach(c => {
-        if (c.paragraph_id) {
+        if (c.paragraph_id && c.is_approved) {
           freshCounts[c.paragraph_id] = (freshCounts[c.paragraph_id] || 0) + 1;
         }
       });
       return freshCounts;
     }
-    return counts;
+    
+    // Fallback về dữ liệu ban đầu từ SSR
+    return { ...initialCounts };
   }, [comments, initialCounts, showComments]);
 
   useEffect(() => {
@@ -165,9 +168,9 @@ export function StaticContent({
         return '';
       }
       
-      if (!showComments) return decoded;
+      if (!showComments || typeof window === 'undefined') return decoded;
 
-      // Dùng DOMParser để chèn Badge một cách chính xác nhất
+      // Dùng DOMParser để chèn Badge một cách chính xác nhất (Chỉ chạy ở Client)
       const parser = new DOMParser();
       const doc = parser.parseFromString(decoded, 'text/html');
       const placeholders = doc.querySelectorAll('[data-comment-placeholder]');
@@ -181,7 +184,6 @@ export function StaticContent({
           el.innerHTML = count.toString();
           el.setAttribute('data-paragraph-id', pid!);
           
-          // Ensure parent is relative so absolute positioning works
           if (el.parentElement) {
             el.parentElement.style.position = 'relative';
           }
@@ -196,7 +198,7 @@ export function StaticContent({
       console.error("Error processing anti-copy HTML:", e);
       return '';
     }
-  }, [content?.is_rendered, content?.html, commentCounts, showComments]);
+  }, [content?.is_rendered, content?.html, commentCounts, showComments, chapterId]);
 
   // 2. Handlers
   const handleContainerClick = (e: React.MouseEvent) => {

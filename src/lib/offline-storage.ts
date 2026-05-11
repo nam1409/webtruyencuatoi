@@ -164,6 +164,31 @@ export async function isChapterOffline(storyId: string, chapterId: string): Prom
 }
 
 /**
+ * Check if a story has any chapters available offline
+ */
+export async function isStoryOffline(storyId: string): Promise<boolean> {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const transaction = db.transaction(STORE_CHAPTERS, "readonly");
+    const store = transaction.objectStore(STORE_CHAPTERS);
+    const request = store.openCursor();
+    request.onsuccess = (event: any) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        if (cursor.value.storyId === storyId) {
+          resolve(true);
+          return;
+        }
+        cursor.continue();
+      } else {
+        resolve(false);
+      }
+    };
+    request.onerror = () => resolve(false);
+  });
+}
+
+/**
  * Delete offline content
  */
 export async function removeOfflineStory(storyId: string) {

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { searchStories } from "@/actions/stories";
 import { useDebounce } from "@/hooks/use-debounce";
 import { getSiteSettings } from "@/actions/settings";
@@ -88,7 +89,13 @@ function StoryCard({ story }: { story: Story }) {
       <div className="flex flex-col h-full overflow-hidden rounded-[1.25rem] border border-border/40 bg-card/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/30">
         <div className="relative aspect-[3/4.2] overflow-hidden">
           {story.cover_url ? (
-            <Image src={story.cover_url} alt={story.title} fill unoptimized className="object-cover transition-transform duration-700 group-hover:scale-105" />
+            <OptimizedImage 
+              src={story.cover_url} 
+              alt={story.title} 
+              fill 
+              className="object-cover transition-transform duration-700 group-hover:scale-105" 
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            />
           ) : (
             <div className="flex h-full items-center justify-center bg-muted/20">
               <BookOpen className="h-10 w-10 text-muted-foreground/10" />
@@ -159,23 +166,28 @@ function DiscoveryContent() {
 
   const [stories, setStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [siteSettings, setSiteSettings] = useState<any>(null);
   const [availableGenres, setAvailableGenres] = useState<string[]>(["Tất cả"]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-
   const [searchInputValue, setSearchInputValue] = useState(q);
   const debouncedSearch = useDebounce(searchInputValue, 500);
 
   // Sync Search Input with Debounce
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
+    const currentQ = params.get("q") || "";
+    
+    if (debouncedSearch === currentQ) return; // Prevent redundant push
+
     if (debouncedSearch) params.set("q", debouncedSearch);
     else params.delete("q");
     router.push(`/truyen?${params.toString()}`, { scroll: false });
   }, [debouncedSearch]);
 
-  // Fetch Genres once
+  // Fetch Genres and Settings once
   useEffect(() => {
     getSiteSettings().then(settings => {
+      setSiteSettings(settings);
       if (settings?.site_genres) {
         setAvailableGenres(["Tất cả", ...settings.site_genres]);
       }
@@ -231,8 +243,22 @@ function DiscoveryContent() {
        <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/80 border-b border-border/40">
         <div className="container mx-auto px-4 h-16 flex items-center gap-4">
           <Link href="/" className="text-xl font-black tracking-tighter flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-[8px] shadow-lg shadow-primary/20">ZS</div>
-            <span className="hidden md:block">ZenStory</span>
+            {siteSettings?.logo_url ? (
+              <div className="w-8 h-8 relative rounded-lg overflow-hidden border border-border/50">
+                <OptimizedImage 
+                  src={siteSettings.logo_url} 
+                  alt={siteSettings.site_name || "Logo"} 
+                  fill 
+                  className="object-contain" 
+                  sizes="32px"
+                />
+              </div>
+            ) : (
+              <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-[8px] shadow-lg shadow-primary/20">
+                {siteSettings?.site_name?.[0] || "ZS"}
+              </div>
+            )}
+            <span className="hidden md:block">{siteSettings?.site_name || "ZenStory"}</span>
           </Link>
           
           <div className="flex-1 max-w-2xl mx-auto relative group">
