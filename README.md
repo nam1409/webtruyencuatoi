@@ -52,7 +52,24 @@ Bạn cần điền các thông tin sau vào tệp `.env` hoặc cấu hình tr�
 - `UPSTASH_REDIS_REST_TOKEN`: Mã truy cập REST.
 
 ### 3. Website Metadata
-- `NEXT_PUBLIC_SITE_URL`: Địa chỉ trang web của bạn (ví dụ: `https://my-story.vercel.app`).
+- `NEXT_PUBLIC_SITE_URL`: Địa chỉ trang web (ví dụ: `https://my-story.vercel.app`). **Bắt buộc** để tính năng Đăng nhập Google/Github hoạt động chính xác.
+
+---
+
+## 🔐 Cấu hình Social Login (Tùy chọn)
+
+Để tránh giới hạn gửi Email (Rate Limit) của Supabase, bạn nên cấu hình đăng nhập qua Google hoặc Github:
+
+### 1. Google Login
+1. Truy cập [Google Cloud Console](https://console.cloud.google.com/), tạo dự án và lấy **Client ID**, **Client Secret**.
+2. Thêm Redirect URI: `https://[PROJECT_ID].supabase.co/auth/v1/callback`.
+3. Trong Supabase Dashboard, vào **Authentication > Providers > Google**, bật và điền thông tin Client.
+
+### 2. Github Login
+1. Vào GitHub Settings > Developer Settings > OAuth Apps > **New OAuth App**.
+2. Homepage URL: Địa chỉ website của bạn.
+3. Authorization callback URL: `https://[PROJECT_ID].supabase.co/auth/v1/callback`.
+4. Điền Client ID/Secret vào Supabase tương tự như Google.
 
 ---
 
