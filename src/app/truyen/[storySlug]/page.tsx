@@ -69,12 +69,36 @@ import Image from "next/image";
 
 export default async function StoryDetailPage({ params }: { params: Promise<{ storySlug: string }> }) {
   const { storySlug } = await params;
-  const story = await getStoryBySlug(storySlug);
-  const settings = await getSiteSettings();
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  
+  // Parallelize basic info fetching
+  const [story, settings, supabase] = await Promise.all([
+    getStoryBySlug(storySlug),
+    getSiteSettings(),
+    createClient()
+  ]);
 
-  // Fetch full profile with role
+  if (!story) {
+    notFound();
+  }
+
+  // Fetch user and other data in parallel
+  const [
+    { data: { user: authUser } },
+    allChapters, 
+    volumes, 
+    ratingData, 
+    collaborators, 
+    characters
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    getChaptersByStory(story.id, true),
+    getVolumesByStory(story.id),
+    getStoryRating(story.id),
+    getCollaborators(story.id),
+    getCharactersByStory(story.id)
+  ]);
+
+  // Fetch full profile if user exists
   let user = null;
   if (authUser) {
     const { data: profile } = await supabase
@@ -85,18 +109,6 @@ export default async function StoryDetailPage({ params }: { params: Promise<{ st
     
     user = profile ? { ...authUser, ...profile } : authUser;
   }
-  
-  if (!story) {
-    notFound();
-  }
-
-  const [allChapters, volumes, ratingData, collaborators, characters] = await Promise.all([
-    getChaptersByStory(story.id, true),
-    getVolumesByStory(story.id),
-    getStoryRating(story.id),
-    getCollaborators(story.id),
-    getCharactersByStory(story.id)
-  ]);
 
   // Chapters are already filtered by the action
   const chapters = allChapters;

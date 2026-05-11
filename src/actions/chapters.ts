@@ -593,8 +593,7 @@ export async function getChaptersByStory(storyId: string, isPublic: boolean = fa
     .from("chapters")
     .select(`
       id, story_id, volume_id, title, slug, order_index, status, published_at, created_at, updated_at, scheduled_at,
-      view_count,
-      comments(count)
+      view_count
     `)
     .eq("story_id", storyId);
   
